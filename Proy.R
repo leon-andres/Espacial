@@ -87,7 +87,7 @@ plot(pmgs, qt.col = c("purple",
 plot(pmgs, scatter3d = T)
 
 # Variograma empírico para los residuales usando el estimador clásico
-vari2 <- variog(pmgs, trend = "cte", estimator.type = "classical", bin.cloud = T)
+vari2 <- variog(pmgs, trend = "cte", estimator.type = "classical", bin.cloud = T, pairs.min = 7)
 vari2
 plot(vari2)
 
@@ -99,20 +99,97 @@ for (i in 1:10) {
 par(mfrow = c(1, 1))
 
 # Obtenemos "manualmente" el estimador resistente para datos atípicos
-semivarianza <- numeric(13)  
-distancia <- numeric(13)
-for (i in 1:13) {
-  semivarianza[i] <- (median(sqrt(sqrt(vari2$bin.cloud[[i]]))) / (2 * 0.457))^4
-  distancia[i] <- vari2$u[i]
+for (i in 1:8) {
+  vari2$v[i] <- (median(sqrt(sqrt(vari2$bin.cloud[[i+1]]))) / (2 * 0.457))^4
+}
+plot(vari2)
+eyefit(vari2)
+
+ini1 <- c(4, 4156.58)
+fitvar1 <- variofit(vari2,
+                    cov.model = "wave",
+                    ini1,
+                    fix.nugget = TRUE,
+                    nugget = 1.72,
+                    wei = "npairs")
+
+ini2 <- c(7.91, 14251.14)
+fitvar2 <- variofit(vari2,
+                    cov.model = "wave",
+                    ini2,
+                    fix.nugget = FALSE,
+                    wei = "npairs")
+ini3 <- c(5.16, 5344.18)
+fitvar3 <- variofit(vari2,
+                    cov.model = "exponential",
+                    ini3,
+                    fix.nugget = FALSE,
+                    wei = "npairs")
+
+plot(vari2$u,vari2$v,
+     xlab = "h",
+     ylab = "semivarianza",
+     cex.lab = 1.3,
+     cex.axis = 1.2,
+     main = "Estimación teórica del modelo de semivariograma",
+     col.main = 4, cex.main =1.3)
+lines(fitvar1, col = 1)
+lines(fitvar2, col = 2)
+lines(fitvar3, col = 3)
+legend(130, 18000,
+       c("MCO", "MCPnpairs", "MCPcressie"),
+       lwd = 2,
+       lty = 2:7,
+       col = 2:7,
+       box.col = 9,
+       text.col = 2:7)
+
+summary(fitvar1)
+AIC(fitvar1)
+
+
+# Función para predecir la semivarianza teórica en función de la distancia
+predict_semivariogram <- function(model, h) {
+  cov.model <- model$cov.model
+  cov.pars <- model$cov.pars
+  nugget <- model$nugget
+  
+  # γ(h) = sill - cov(h) + nugget
+  sill <- sum(cov.pars, nugget)
+  gamma.h <- sill - geoR::cov.spatial(h, cov.model = cov.model, cov.pars = cov.pars)
+  return(gamma.h)
 }
 
-plot(distancia,semivarianza)
+# Función para calcular el RMSE
+calc_rmse <- function(emp, model) {
+  pred <- predict_semivariogram(model, emp$u)  # emp$u son distancias
+  sqrt(mean((emp$v - pred)^2))                # emp$v son semivarianzas empíricas
+}
 
+# Calcular RMSE para cada ajuste
+rmse1 <- calc_rmse(vari2, fitvar1)
+rmse2 <- calc_rmse(vari2, fitvar2)
+rmse3 <- calc_rmse(vari2, fitvar3)
 
+# Mostrar resultados
+rmse_comparacion <- c(Wave_Fijo = rmse1, Wave_Libre = rmse2, Exponential = rmse3)
+print(rmse_comparacion)
 
+# 1. Graficar el semivariograma empírico
+plot(vari2,
+     main = "Semivariograma empírico con modelo ajustado",
+     xlab = "Distancia (h)",
+     ylab = expression(gamma(h)))
+
+# 2. Superponer el modelo teórico ajustado (fitvar1)
+lines.variomodel(fitvar1, col = "blue", lwd = 2)
+
+# 3. Guardar el modelo final para interpolación posterior
+final_model <- fitvar1
 
 
 
 # datno2 <- sqldf("select *
 #                 from datos2
 #                 where Variable = 'NO2' and Año = 2022 and `Código del Departamento` = 11")
+
