@@ -59,7 +59,7 @@ Este conjunto de datos permite una primera aproximación descriptiva y espacial 
 #| message: false
 #| warning: false
 
-lista_librerías<-c("readr","sqldf","tidyr","tidyverse","ggplot2","patchwork","sp","fields","geoR","akima","shiny","gstat", "sf", "dplyr") 
+lista_librerías<-c("readr","sqldf","tidyr","tidyverse","ggplot2","patchwork","sp","fields","geoR","akima","shiny","gstat", "sf", "dplyr", "knitr") 
 
 
 no_installs <- lista_librerías[!lista_librerías %in% installed.packages()]
@@ -179,15 +179,19 @@ Con el objetivo de respaldar cuantitativamente las observaciones realizadas en l
 ```{r}
 #| echo: false
 c <- cor(PM2_5[, c("este", "norte", "PM2.5")])
-c
+knitr::kable(c, caption = "Matriz de Correlación")
+```
+
+Los resultados muestran que la correlación entre PM2.5 y la coordenada Este es de aproximadamente -0.67, lo que indica una fuerte relación inversa: a medida que se avanza hacia el este de la ciudad, los valores de PM2.5 tienden a disminuir. Por su parte, la correlación entre PM2.5 y la coordenada Norte es más débil, con un valor cercano a -0.43, lo cual sugiere una tendencia decreciente más tenue o posiblemente poco significativa.
+
+```{r}
+#| echo: false
 heatmap(c, 
         col = colorRampPalette(c("blue", "lightblue", "white" ,"red", "darkred"))(10), 
         symm = T, 
         main = "Matriz de Correlación PM2.5", 
         margins = c(6, 6))
 ```
-
-Los resultados muestran que la correlación entre PM2.5 y la coordenada Este es de aproximadamente -0.67, lo que indica una fuerte relación inversa: a medida que se avanza hacia el este de la ciudad, los valores de PM2.5 tienden a disminuir. Por su parte, la correlación entre PM2.5 y la coordenada Norte es más débil, con un valor cercano a -0.43, lo cual sugiere una tendencia decreciente más tenue o posiblemente poco significativa.
 
 Estos resultados se visualizan mediante un mapa de calor de la matriz de correlaciones, donde se utiliza una escala de color que va desde el azul oscuro (para relaciones negativas fuertes) hasta el rojo oscuro (para relaciones positivas fuertes). En el gráfico, se aprecia claramente que la celda correspondiente a la relación entre PM2.5 y la coordenada Este se tiñe de azul oscuro, lo cual refuerza la interpretación de una asociación negativa importante. En cambio, la celda que representa la correlación con la coordenada Norte presenta un tono azul más claro, reflejando una relación más débil.
 
@@ -407,6 +411,8 @@ legend("topleft",
 
 Una vez realizados los ajustes, se graficaron los tres modelos teóricos junto al semivariograma empírico. Visualmente, los tres modelos parecen representar adecuadamente la estructura espacial de los datos. Todos capturan bien el incremento inicial de la semivarianza. Sin embargo, para decidir cuál de los modelos se ajusta mejor, se utilizará el criterio cuantitativo basado en el error cuadrático medio (RMSE), que permitirá comparar qué tan cerca está cada modelo de los valores empíricos en promedio.
 
+Los resultados obtenidos para el RMSE de cada modelo fueron los siguientes:
+
 ```{r}
 #| echo: false
 # Función para predecir la semivarianza teórica en función de la distancia
@@ -433,17 +439,9 @@ rmse2 <- calc_rmse(vari2, fitvar2)
 rmse3 <- calc_rmse(vari2, fitvar3)
 
 # Mostrar resultados
-rmse_comparacion <- c(Wave_Fijo = rmse1, Wave_Libre = rmse2, Exponential = rmse3)
-rmse_comparacion
+rmse_comparacion <- c("Wave Fijo" = rmse1, "Wave Libre" = rmse2, Exponential = rmse3)
+knitr::kable(rmse_comparacion, col.names = c("Modelo", "RMSE"))
 ```
-
-Los resultados obtenidos para el RMSE de cada modelo fueron los siguientes:
-
--   **Wave con pepita fija:** 1.992
-
--   **Wave con pepita libre:** 2.020
-
--   **Exponencial con pepita libre:** 2.220
 
 A partir de estos valores, se observa que el modelo Wave con pepita fija presenta el menor RMSE, lo que indica que es el que mejor se ajusta al semivariograma empírico bajo este criterio. Aunque las diferencias no son tan grandes respecto al modelo Wave con pepita libre, sí marcan una ventaja que justifica seleccionarlo como el modelo final a utilizar en adelante para la representación de la estructura de dependencia espacial en los datos.
 
@@ -463,6 +461,8 @@ final_model <- fitvar2
 ```
 
 ## **Análisis inicial de PM10**
+
+Al igual que la variable PM2.5 se realizara el análisis descriptivo geoespacial para el periodo 2022 para el material particulado en el aire con un diámetro aerodinámico menor o igual a 10 micrómetros (PM10) del cual se dispone del promedio anual proveniente de 19 estaciones de monitoreo dispersas por la ciudad.
 
 ```{r}
 #| include: false
@@ -502,64 +502,101 @@ PM10_2022 <- PM10_2022 %>%
   )
 ```
 
-### Visualización estaciones
+### Visualización valores registrados
+
+En la siguiente gráfica se observan los valores registrados por las estaciones de monitoreo para el periodo correspondiente, se observan que hay una mayor concentración de estaciones hacia la zona sur occidental de la ciudad y de igual forma en la zona mencionada se registraron los mayores registros (ilustrados por los puntos amarillos) de las partículas PM10 lo cual se puede estar vinculado a la presencia de zonas industriales en el sector de la Sevillana e igualmente al ser una de las entradas vehiculares de la ciudad
 
 ```{r}
 #| echo: false
 #| message: false
 #| warning: false
-PM10_2022sf <- st_as_sf(PM10_2022, coords = c("Longitud", "Latitud"), crs = CRS_UTM_CO)
+PM10_2022sf <- st_as_sf(PM10_2022, 
+                        coords = c("Longitud", "Latitud"),
+                        crs = CRS_UTM_CO)
 
 ggplot(bogota_shp) +
   geom_sf(fill = "lightgray", color = "black") +
   geom_sf(data = PM10_2022sf,
-             aes(color = PM10,
-                 size = PM10), 
-             alpha = 0.7,
-             show.legend = c(color = TRUE, size = FALSE)) +
+          aes(color = PM10, size = PM10),
+          alpha = 0.7,
+          show.legend = c(color = TRUE, size = FALSE)) +
 scale_color_viridis_c(option = "plasma", name = "Valor") +
-  labs(title = "Partículas PM2.5 en Bogotá año 2022",
+  labs(title = "Partículas PM10 en Bogotá año 2022",
        x = "Longitud",
        y = "Latitud") +
   theme_minimal()
 ```
 
-### Relación PM10 vs coordenadas
+### Relación PM10 vs coordenadas espaciales
 
 ```{r}
+#| message: false
+#| warning: false
+#| include: false
 PM10_2022g <- as.geodata(PM10_2022, coords.col = 1:2, data.col = 4)
+```
+
+```{r}
+#| echo: false
 plot.geodata(PM10_2022g)
 ```
 
+En los gráficos donde se comparan los valores registrados de partículas PM10 y los ejes coordenados se observan que para la longitud hay un patrón decreciente, de igual forma se observa que posiblemente hay un valor atípico que puede influir en los análisis posteriores. En el caso de la relación de los registros y la latitud no se observa un patrón tan notorio como en el otro eje lo cual puede indicar que la latitud no influye tanto como lo que seria la longitud.
+
 ### Ajuste modelo de regresión
 
+Con el fin de extraer la tendencia del proceso espacial se ajustaron varios modelos de regresión del cual se concluyo que el modelo que tiene como único predictor a la longitud es el mas idóneo dado que comparado con los otros modelos contemplados es el mas parsimonio. Los modelos contemplados y sus resultados fueron los siguientes:
+
+-   $PM10=Longitud + Latitud + [Longitud*Latitud] +\epsilon$
+
 ```{r}
-### Modelo de regresión para PM10
+#| echo: false
 summary(lm(PM10 ~ Longitud + Latitud + I(Longitud*Latitud), data = PM10_2022))
+```
+
+-   $PM10=Longitud + Latitud +\epsilon$
+
+```{r}
+#| echo: false
 summary(lm(PM10 ~ Longitud + Latitud, data = PM10_2022))
+```
+
+El modelo que fue seleccionado
+
+$$
+PM10=Latitud + \epsilon
+$$
+
+```{r}
+#| echo: false
 summary(lm(PM10 ~ Longitud, data = PM10_2022))
 
 # Es el modelo con mejor R^2 ajustado
-lm_PM10 <- lm(PM10 ~ Longitud + Latitud + I(Longitud*Latitud), data = PM10_2022)
+lm_PM10 <- lm(PM10 ~ Longitud, data = PM10_2022)
 
 PM10_2022$residuales <- lm_PM10$residuals
 ```
 
+Aunque el primer modelo que contempla como variables explicativas tanto a la latitud como a la longitud y la iteracción entre estas presento un $R^2$ ajustado superior al de los otros modelos, se tiene que ninguna de las variables de son significativas por lo cual como se menciono anteriormente se opto por el modelo que contempla únicamente como variable explicativa a la longitud puesto que presento un $R^2$ ajustado cercano al del primer modelo y que se tiene que la variable es significativa.
+
 ### Análisis de residuos
 
+Después de haberse realizado el ajuste del modelo de tendencia, se observa que los residuos estandarizados no presentan un patrón definido, lo cual indica que el modelo de regresión seleccionado en efecto capturo la tendencia del proceso.
+
 ```{r}
+#| echo: false
 par(mfrow = c(1, 3))
 
 # Residuales estandarizados vs Coordenada Este
 plot(PM10_2022$Longitud, rstandard(lm_PM10),
-     main = "Residuales vs Coordenada Este",
+     main = "Residuales vs Longitud",
      xlab = "Longitud",
      ylab = "Residuales estandarizados",
      pch = 16, col = "darkblue")
 
 # Residuales estandarizados vs Coordenada Norte
 plot(PM10_2022$Latitud, rstandard(lm_PM10),
-     main = "Residuales vs Coordenada Norte",
+     main = "Residuales vs Latitud",
      xlab = "Latitud",
      ylab = "Residuales estandarizados",
      pch = 16, col = "darkgreen")
@@ -574,28 +611,60 @@ boxplot(rstandard(lm_PM10),
 par(mfrow = c(1, 1))
 ```
 
+Aunque en el boxplot se observa que no hay presencia de datos atípicos, en los gráficos de los residuales estandarizados vs cada uno de los ejes se señala la presencia de un valor que se aleja significativamente del comportamiento del restante de valores lo cual coincide con lo observado anteriormente en los gráficos de las partículas PM10 por lo tanto se decide que se hará uso de estimadores robustos con el fin disminuir la posible influencia de dicho valor en los análisis posteriores.
+
 ### Visualización espacial de residuos
 
+A continuación se gráfican los residuos en el espacio, en donde a diferencia de los valores PM10 no hay presencia de clusters notorios y de igual forma se removió la tendencia originalmente presenciada puesto que los residuos varían al rededor de 0 en ambos ejes espaciales.
+
 ```{r}
+#| include: false
 # Datos centrados 
 PM10_2022resg <- as.geodata(PM10_2022, coords.col = 1:2, data.col = 5)
-plot.geodata(PM10_2022resg, scatter3d = TRUE)
 
+```
+
+```{r}
+#| echo: false
+plot.geodata(PM10_2022resg, scatter3d = TRUE)
 ```
 
 ### Estimación del semivariograma y uso de un estimador robusto
 
+Se realizara la estimación del semivariograma empírico de los residuos con el fin de analizar la dependencia espacial de dichos valores.
+
 ```{r}
+#| message: false
+#| warning: false
+#| include: false
+variPM10_2022 <- variog(PM10_2022resg, estimator.type = "modulus")
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-cap: "Variograma clasico y robusto de los residuales de PM10"
 # Variograma PM10
 par(mfrow = c(1, 2))
 plot(variog(PM10_2022resg))
 plot(variog(PM10_2022resg, estimator.type = "modulus"))
-variPM10_2022 <- variog(PM10_2022resg, estimator.type = "modulus")
 ```
+
+Aunque como se menciono anteriormente sobre el uso de estimadores robustos se presenta a la izquierda el semivariograma estimado usando el estimador clasico, a la derecha se presenta el semivariograma estimado usando el estimador robusto definido como:
+
+$$
+\tilde{\gamma}(\mathbf{h}) = \frac{1}{2 \left( 0.457 + \frac{0.494}{|N(\mathbf{h})|} + \frac{0.045}{|N^2(\mathbf{h})|} \right)} \left( \frac{\left( \sum_{N(\mathbf{h})} |Z(\mathbf{s} + \mathbf{h}) - Z(\mathbf{s})|^{1/2} \right)^4}{|N(\mathbf{h})|} \right)
+$$
+
+El cual corresponde al estimador resistente a datos atípicos utilizando el promedio, propuesto por Cressie.
 
 ### Ajuste de modelos teóricos al semivariograma empírico
 
+Haciendo uso de la función eyefit del paquete geoR se concluyo visualmente que los tres modelos que se ajustaban al modelo empírico fueron el modelo exponencial, el esférico y el gaussiano
+
 ```{r}
+#| echo: false
 # Ajuste por eyefit
 expPM10_2022 <- variofit(variPM10_2022,
                     cov.model = "exponential",
@@ -618,7 +687,10 @@ gauPM10_2022 <- variofit(variPM10_2022,
 
 ```
 
+Los tres modelos sugeridos se ajustaron con efecto pepita libre fijo. A continuación se muestran los tres modelos propuestos superpuestos al semivariograma empírico
+
 ```{r}
+#| echo: false
 plot(variPM10_2022$u, variPM10_2022$v,
      xlab = "Distancia (h)",
      ylab = "Semivarianza",
@@ -642,7 +714,12 @@ legend("topright",
        text.col = "black")
 ```
 
+Se observa que los tres modelos se pueden estar viendo influenciados posiblemente por los valores significativamente altos que se encuentra en los primeros lags. Siendo el gaussiano el que menos se ve influenciado visualmente.
+
+Con el fin de elegir el mejor modelo de los tres sugeridos se hace uso del RMSE para cada uno, dando como resultado los siguientes valores:
+
 ```{r}
+#| echo: false
 # Calcular RMSE para cada ajuste
 rmse1 <- calc_rmse(variPM10_2022, expPM10_2022)
 rmse2 <- calc_rmse(variPM10_2022, sphPM10_2022)
@@ -650,17 +727,21 @@ rmse3 <- calc_rmse(variPM10_2022, gauPM10_2022)
 
 # Mostrar resultados
 rmse_comparacion <- c(Exponencial = rmse1, Esferico = rmse2, Gaussiano = rmse3)
-rmse_comparacion
+knitr::kable(rmse_comparacion, col.names = c("Modelo", "RMSE"))
 
 ```
 
+Dado que el modelo exponencial es el modelos que presenta el menor RSME se selecciona dicho modelo.
+
 ```{r}
+#| echo: false
 plot(variPM10_2022$u, variPM10_2022$v,
      xlab = "Distancia (h)",
      ylab = "Semivarianza",
      cex.lab = 1.3,
      cex.axis = 1.2,
-     main = "Ajuste de Modelos Teóricos al Semivariograma Empírico",
+     main = "Ajuste de Modelos exponencial
+     al Semivariograma Empírico",
      col.main = 4,
      cex.main = 1.3,
      pch = 20)
