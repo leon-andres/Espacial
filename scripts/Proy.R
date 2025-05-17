@@ -29,7 +29,7 @@ dat2.5 <- sqldf("select *
                 where Variable = 'PM2.5' and Año = 2022 and `Código del Departamento`in (11)")
 
 
-# Pasándol a coordenadas proyectadas
+# Pasándolo a coordenadas proyectadas
 coords_geo <- SpatialPoints(cbind(dat2.5$Longitud, dat2.5$Latitud),
                             proj4string = CRS("+proj=longlat +datum=WGS84"))
 plot(coords_geo, axes = TRUE, main = "Coordenadas Lat-Long")
