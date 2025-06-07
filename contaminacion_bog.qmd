@@ -59,7 +59,7 @@ Este conjunto de datos permite una primera aproximación descriptiva y espacial 
 #| message: false
 #| warning: false
 
-lista_librerías<-c("readr","sqldf","tidyr","tidyverse","ggplot2","patchwork","sp","fields","geoR","akima","shiny","gstat", "sf", "dplyr", "knitr") 
+lista_librerías<-c("readr","sqldf","tidyr","tidyverse","ggplot2","patchwork","sp","fields","geoR","akima","shiny","gstat", "sf", "dplyr", "knitr", "raster", "scales") 
 
 
 no_installs <- lista_librerías[!lista_librerías %in% installed.packages()]
@@ -79,20 +79,16 @@ sapply(lista_librerías, require, character = TRUE)
 #| include: false
 datos <- read_csv("calidad_aire.csv", na = "N/A")
 
-datos2 <- datos[,c(1,3:10,12,23:26,28)] 
+datos2 <- datos[,c(1,3:10,12,13,16,23:26,28)] 
 
 # Promedio ponderado
-datos2<-sqldf("select *, sum(Promedio*[No. de datos])/sum([No. de datos]) as [prom pond], sum([No. de datos]) as TotalDatos
+dat2.5<-sqldf("select *
       from datos2
+      where Variable = 'PM2.5' and Año = 2022 and `Código del Departamento`in (11) and
+      `Representatividad Temporal` > 59
+      and `Tiempo de exposición (horas)` = 24
       group by [ID Estacion], Variable, Año
       order by [ID Estacion], variable, Año")
-
-datos2 <- datos2[, !(names(datos2) %in% c("Promedio", "No. de datos"))]
-
-#Data de PM2.5
-dat2.5 <- sqldf("select *
-                from datos2
-                where Variable = 'PM2.5' and Año = 2022 and `Código del Departamento`in (11)")
 ```
 
 ```{r}
@@ -103,12 +99,12 @@ dat2.5 <- sqldf("select *
 coords_geo <- SpatialPoints(cbind(dat2.5$Longitud, 
                                   dat2.5$Latitud),
                             proj4string = CRS("+proj=longlat +datum=WGS84"))
-data_aire_geo <- data.frame(coords_geo,PM2_5 = dat2.5$`prom pond`)
+data_aire_geo <- data.frame(coords_geo,PM2_5 = dat2.5$Promedio)
 CRS_UTM_CO <- CRS("+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs")
 coords_utm <- spTransform(coords_geo, CRS_UTM_CO)
 
 #PM2.5 con promedio ponderado y cantidad de datos con las que se hace el promedio (pesos)
-PM2_5 <- data.frame(coords_utm,PM2.5 = dat2.5$`prom pond`, TotDat = dat2.5$TotalDatos)
+PM2_5 <- data.frame(coords_utm,PM2.5 = dat2.5$Promedio, TotDat = dat2.5$`No. de datos`)
 PM2_5 <- PM2_5 %>%
   rename(
     este = coords.x1,
@@ -126,14 +122,14 @@ El color del punto indica el nivel de concentración de PM2.5: una escala de ton
 #| echo: false
 #| message: false
 #| warning: false
-bogota_shp <- st_read("mapa/loca.shp")    # Localidades de Bogotá
-bogota_shp <- st_transform(bogota_shp[-9,], crs = "+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs")
+colom_shp <- st_read("mapa/loca.shp")    # Localidades de Bogotá
+colom_shp <- st_transform(colom_shp[-9,], crs = "+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs")
 
 # Para PM2.5
 PM2_5_sf <- st_as_sf(PM2_5, coords = c("este", "norte"), crs = CRS_UTM_CO)
 
 ggplot() +
-  geom_sf(data = bogota_shp, fill = "white", color = "black") +
+  geom_sf(data = colom_shp, fill = "white", color = "black") +
   geom_sf(data = PM2_5_sf, aes(color = PM2.5, size = TotDat), alpha = 0.8) +
   scale_color_gradient(name = "PM2.5 (µg/m³)", low = "blue", high = "red") +
   labs(title = "Mapa de estaciones PM2.5 - Bogotá",
@@ -206,13 +202,13 @@ $$PM 2.5 = \beta_0 +β_1⋅Este + \epsilon$$
 ```{r}
 #| echo: false
 # MODELO PARA EXTRAER LA TENDENCIA, TENIENDO COMO PESO LOS TOTALES 
-fit1 <- lm(PM2.5 ~ este, data = PM2_5, weights = TotDat)
+fit1 <- lm(PM2.5 ~ este + I(este^2), data = PM2_5, weights = TotDat)
 summary(fit1)
 ```
 
 Los resultados del modelo estimado son los siguientes:
 
--   Intercepto: \$\hat{beta_0} = 412.6\$, con un valor p = 0.0004
+-   Intercepto: $\hat{\beta_0}=412.6$, con un valor p = 0.0004
 -   Pendiente: $\hat{\beta_1}=−0.0006596$, con un valor p = 0.0005
 
 Ambos coeficientes son estadísticamente significativos al 1%. La pendiente negativa confirma la tendencia decreciente de PM2.5 en dirección Este, como se había sugerido previamente. El coeficiente de determinación ajustado ($R^2$ ajustado) fue de 0.467, lo cual indica que aproximadamente un 47% de la variabilidad en los niveles de PM2.5 puede ser explicada por la ubicación este de las estaciones.
@@ -306,48 +302,570 @@ Para garantizar la fiabilidad estadística de las estimaciones, se consideraron 
 ```{r}
 #| echo: false
 # Variograma empírico para los residuales usando el estimador clásico
-vari2 <- variog(pmgs, trend = "cte", estimator.type = "classical", bin.cloud = TRUE, pairs.min = 7)
+vari1 <- variog(pmgs, trend = "cte", estimator.type = "classical", bin.cloud = T, pairs.min = 5, max.dist = 20000)
 
 # Graficar el variograma
-plot(vari2)
+plot(vari1)
 title(main = "Variograma Empírico - Estimador Clásico\n(PM2.5 - Residuales)", cex.main = 1.2)
 ```
 
 El semivariograma estimado con este método mostró un valor atípicamente alto en el segundo rezago, lo cual ya sugería la posible influencia de valores extremos en la estimación. Para examinar esta situación, se construyeron boxplots para las diferencias al cuadrado espaciales en cada uno de los 10 rezagos. Los boxplots revelaron la presencia sistemática de valores atípicos en múltiples distancias, confirmando que el uso del estimador clásico podía estar sesgado.
 
+### Ajuste de modelos teóricos al semivariograma empírico
+
+Después de estimar el semivariograma empírico usando el estimador robusto basado en la mediana, se procedió a ajustar distintos modelos teóricos con el fin de representar adecuadamente la dependencia espacial presente en los datos.
+
+Para este proceso se utilizó primero una herramienta llamada eyefit, que permite hacer un ajuste visual inicial de diferentes modelos teóricos al semivariograma empírico. Con esta función interactiva se fue probando distintas combinaciones de parámetros, tanto para modelos del tipo Wave como exponencial, observando visualmente cuáles se aproximaban mejor a la forma del semivariograma. Con base en esto, se seleccionó tres modelos que mostraban un comportamiento razonable frente a los datos empíricos: dos modelos Wave (uno con pepita fija y otro con pepita libre), y un modelo exponencial con pepita libre.
+
+Los valores iniciales de los parámetros para cada modelo se tomaron de ese ajuste visual. Luego, con esos valores, se hizo el ajuste formal mediante una función que permite optimizar los parámetros para que el modelo se adapte lo mejor posible al semivariograma empírico, en este caso ponderando según el número de pares de observaciones en cada rezago. Para uno de los modelos Wave se dejó la pepita fija en 1.72; mientras que en los otros dos modelos se permitió que la pepita se ajustara libremente.
+
 ```{r}
 #| echo: false
-# Boxplots para los rezagos al cuadrado
-par(mfrow = c(2, 5))  
+#eyefit(vari1)
 
-for (i in 1:10) {
-  boxplot(vari2$bin.cloud[[i]],
-          xlab = paste("Rezago", i),
-          col = "lightblue",
-          main = paste("Distancia", i))
+# Ajuste de semivariogramas con diferentes modelos y condiciones
+ini1 <- c(5.21, 1981)
+fitvar1 <- variofit(vari1,
+                    cov.model = "wave",
+                    ini = ini1,
+                    fix.nugget = TRUE,
+                    nugget=0,
+                    wei = "npairs")
+
+ini2 <- c(5.21, 5000)
+fitvar2 <- variofit(vari1,
+                    cov.model = "spherical",
+                    ini = ini2,
+                    fix.nugget = TRUE,
+                    nugget=0,
+                    wei = "npairs")
+
+ini3 <- c(6, 5000)
+fitvar3 <- variofit(vari1,
+                    cov.model = "gaussian",
+                    ini = ini3,
+                    fix.nugget = TRUE,
+                    nugget=0,
+                    wei = "npairs")
+
+ini4 <- c(6, 5000)
+fitvar4 <- variofit(vari1,
+                    cov.model = "exponential",
+                    ini = ini4,
+                    fix.nugget = TRUE,
+                    nugget=0,
+                    wei = "npairs")
+
+ini5 <- c(7.03, 2477.17)
+fitvar5 <- variofit(vari1,
+                    cov.model = "matern",
+                    ini = ini5,
+                    fix.nugget = TRUE,
+                    nugget=0,
+                    fix.kappa = F,
+                    kappa = 1.35,
+                    wei = "npairs")
+
+# Gráfico del semivariograma empírico y modelos ajustados
+plot(vari1$u, vari1$v,
+     xlab = "Distancia (h)",
+     ylab = "Semivarianza",
+     xlim = c(0,20000),
+     ylim = c(0,8),
+     cex.lab = 1.3,
+     cex.axis = 1.2,
+     main = "Ajuste de Modelos Teóricos al Semivariograma Empírico",
+     col.main = 4,
+     cex.main = 1.3,
+     pch = 20)
+
+lines(fitvar1, col = "blue", lwd = 2, lty = 1)
+lines(fitvar2, col = "red", lwd = 2, lty = 2)
+lines(fitvar3, col = "darkgreen", lwd = 2, lty = 3)
+lines(fitvar4, col = "darkorange", lwd = 2, lty = 3)
+lines(fitvar5, col = "purple", lwd = 2, lty = 3)
+
+
+legend("topleft",
+       legend = c("Wave", "Espherical", "gaussian ", "exponential", "matern"),
+       col = c("blue", "red", "darkgreen", "darkorange"),
+       lty = 1:5,
+       lwd = 2,
+       bty = "n",
+       text.col = "black")
+
+```
+
+Una vez realizados los ajustes, se graficaron los tres modelos teóricos junto al semivariograma empírico. Visualmente, los tres modelos parecen representar adecuadamente la estructura espacial de los datos. Todos capturan bien el incremento inicial de la semivarianza. Sin embargo, para decidir cuál de los modelos se ajusta mejor, se utilizará el criterio cuantitativo basado en el error cuadrático medio (RMSE), que permitirá comparar qué tan cerca está cada modelo de los valores empíricos en promedio.
+
+Los resultados obtenidos para el RMSE de cada modelo fueron los siguientes:
+
+```{r}
+#| echo: false
+# Función para predecir la semivarianza teórica en función de la distancia
+predict_semivariogram <- function(model, h) {
+  cov.model <- model$cov.model
+  cov.pars <- model$cov.pars
+  nugget <- model$nugget
+  
+  # γ(h) = sill - cov(h) + nugget
+  sill <- cov.pars[1] + nugget
+  gamma.h <- sill - geoR::cov.spatial(h, cov.model = cov.model, cov.pars = cov.pars)
+  return(gamma.h)
 }
+
+# Función para calcular el RMSE
+calc_rmse <- function(emp, model) {
+  pred <- predict_semivariogram(model, emp$u)  # emp$u son distancias
+  sqrt(mean((emp$v - pred)^2))                # emp$v son semivarianzas empíricas
+}
+
+# Calcular RMSE para cada ajuste
+rmse1 <- calc_rmse(vari1, fitvar1)
+rmse2 <- calc_rmse(vari1, fitvar2)
+rmse3 <- calc_rmse(vari1, fitvar3)
+rmse4 <- calc_rmse(vari1, fitvar4)
+rmse5 <- calc_rmse(vari1, fitvar5)
+
+# Mostrar resultados
+rmse_comparacion <- c("Wave" = rmse1, "Espherical" = rmse2, "Gaussian" = rmse3,  Exponential= rmse4, Matern =rmse5)
+knitr::kable(rmse_comparacion, col.names = c("Modelo", "RMSE"))
+```
+
+A partir de estos valores, se observa que el modelo Wave con pepita fija presenta el menor RMSE, lo que indica que es el que mejor se ajusta al semivariograma empírico bajo este criterio. Aunque las diferencias no son tan grandes respecto al modelo Wave con pepita libre, sí marcan una ventaja que justifica seleccionarlo como el modelo final a utilizar en adelante para la representación de la estructura de dependencia espacial en los datos.
+
+```{r}
+#| echo: false
+# 1. Graficar el semivariograma empírico
+plot(vari1,
+     main = "Semivariograma empírico con modelo ajustado",
+     xlab = "Distancia (h)",
+     ylab = expression(gamma(h)))
+
+# 2. Superponer el modelo teórico ajustado (fitvar1)
+lines.variomodel(fitvar4, col = "blue", lwd = 2)
+
+
+# 3. Guardar el modelo final para interpolación posterior
+final_model <- fitvar4
+```
+
+```{r}
+#| include: false
+
+# Obtenemos los polígonos
+PM2_5_sf <- st_as_sf(PM2_5, coords = c("este", "norte"), crs = CRS_UTM_CO)
+
+# Convertir a objeto Spatial
+PM2_5_sp <- as(PM2_5_sf, "Spatial")
+
+# Ajustar modelo de semivariograma
+final_model <- vgm(psill = 5.8421, model = "Exp", range = 4586.5462, nugget = 0)
+
+# Crear grilla usando límites del shapefile
+bbox_colom <- st_bbox(colom_shp) # Se obtienen los extremos del shapefile
+grilla <- expand.grid(
+  x = seq(bbox_colom["xmin"], bbox_colom["xmax"], by = 100),
+  y = seq(bbox_colom["ymin"], bbox_colom["ymax"], by = 100)
+) # Se crea la grilla
+coordinates(grilla) <- ~x + y # Se convierte la grilla en un objeto espacial
+gridded(grilla) <- TRUE # Convierte la grilla en una estructura de celda, no de puntos
+proj4string(grilla) <- CRS(st_crs(colom_shp)$proj4string) #Le asigna el sistema de referencia espacial del shapefile original
+
+# Kriging
+kriging_result <- krige(residuals ~ 1, PM2_5_sp, grilla, model = final_model) #Predicción
+
+
+# Resumen
+summary(kriging_result@data$var1.pred)
+summary(kriging_result@data$var1.var)
+```
+
+```{r}
+#| echo: false
+
+# 1. Convertir resultado de kriging a raster
+kriging_raster <- raster(kriging_result["var1.pred"]) #Lo transforma en una imagen de mapa
+
+# 2. Convertir el shapefile de Colombia a Spatial
+colom_sp <- as(colom_shp, "Spatial")
+
+# 3. Recortar el raster con el polígono de Colombia
+kriging_raster_masked <- mask(kriging_raster, colom_sp) #Recorta el mapa visual usando el shapefile
+
+# 4. Convertir a dataframe para ggplot
+kriging_df <- as.data.frame(kriging_raster_masked, xy = TRUE)
+kriging_df <- na.omit(kriging_df) #Quitamos los na que quedaran por fuera del shapefile
+
+# 5. Agregar variable de tendencia: PM2.5 ~ este
+kriging_df$este <- kriging_df$x
+kriging_df$este2 <- kriging_df$este^2  
+kriging_df$tendencia <- predict(fit1, newdata = kriging_df)
+
+# 6. Sumar kriging de residuos + tendencia
+kriging_df$PM25_estimado <- kriging_df$var1.pred + kriging_df$tendencia
+
+# 7. Graficar mapa final
+library(ggplot2)
+
+ggplot() +
+  geom_raster(data = kriging_df, aes(x = x, y = y, fill = PM25_estimado)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradientn(
+    name = "PM2.5 estimado (µg/m³)",
+    colours = c("navy", "deepskyblue", "limegreen", "yellow", "orange", "firebrick"),
+    na.value = NA
+  ) +
+  labs(
+    title = "Mapa estimado de PM2.5",
+    subtitle = "Tendencia lineal + Kriging de residuos",
+    caption = "Interpolación con modelo gaussiano"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+```
+
+```{r}
+#| echo: false
+# 1. Convertir la varianza de predicción a raster
+kriging_var_raster <- raster(kriging_result["var1.var"])
+
+# 2. Recortar con el polígono de Colombia
+kriging_var_masked <- mask(kriging_var_raster, colom_sp)
+
+# 3. Convertir a dataframe para ggplot
+kriging_var_df <- as.data.frame(kriging_var_masked, xy = TRUE)
+kriging_var_df <- na.omit(kriging_var_df)
+
+# 4. Mapa de la varianza (variabilidad del kriging)
+ggplot() +
+  geom_raster(data = kriging_var_df, aes(x = x, y = y, fill = var1.var)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradientn(
+    name = "Varianza de predicción",
+    colours = c("white", "lightblue", "deepskyblue", "blue", "navy"),
+    na.value = NA
+  ) +
+  labs(
+    title = "Mapa de incertidumbre del kriging",
+    subtitle = "Varianza de predicción espacial (PM2.5)",
+    caption = "Entre más oscuro, mayor incertidumbre"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+
+
+```
+
+```{r}
+#| echo: false
+library(raster)
+library(ggplot2)
+
+# 1. Raster de desviación estándar (raíz cuadrada de la varianza)
+kriging_sd_raster <- sqrt(raster(kriging_result["var1.var"]))
+
+# 2. Raster de valor estimado (ya sumaste tendencia + kriging residuos)
+# Aquí asumimos que tienes el raster de valores estimados (o creas uno desde dataframe):
+# Supongamos que kriging_df$PM25_estimado es tu estimado en dataframe
+# Primero convertir dataframe a raster (si no lo tienes):
+
+coordinates(kriging_df) <- ~x+y
+gridded(kriging_df) <- TRUE
+PM25_estimado_raster <- raster(kriging_df["PM25_estimado"])
+
+# 3. Recortar raster con polígono Colombia
+colom_sp <- as(colom_shp, "Spatial")
+kriging_sd_masked <- mask(kriging_sd_raster, colom_sp)
+PM25_estimado_masked <- mask(PM25_estimado_raster, colom_sp)
+
+# 4. Calcular raster de CV (%) 
+cv_raster <- (kriging_sd_masked / PM25_estimado_masked) * 100
+
+# 5. Convertir a dataframe para ggplot
+cv_df <- as.data.frame(cv_raster, xy = TRUE)
+cv_df <- na.omit(cv_df)
+
+# 6. Graficar coeficiente de variación (%)
+ggplot() +
+  geom_raster(data = cv_df, aes(x = x, y = y, fill = layer)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradientn(
+    name = "Coeficiente de Variación (%)",
+    colours = c("white", "yellow", "orange", "red", "darkred"),
+    na.value = NA
+  ) +
+  labs(
+    title = "Mapa del Coeficiente de Variación (CV) del Kriging",
+    subtitle = "Incertidumbre relativa de PM2.5",
+    caption = "CV = (Desv. estándar / Valor estimado) * 100"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+
+a1 <- data.frame(PM25_estimado = kriging_df$PM25_estimado,
+                varianza = kriging_var_df$var1.var,
+                cv = sqrt(kriging_var_df$var1.var) / abs(kriging_df$PM25_estimado)*100)
+
+```
+
+# PM10
+
+```{r}
+#| include: false
+
+datos2 <- datos[,c(1,3:10,12,13,16,23:26,28)] 
+
+# Promedio ponderado
+dat10<-sqldf("select *
+      from datos2
+      where Variable = 'PM10' and Año = 2022 and `Código del Departamento`in (11) and
+      `Representatividad Temporal` > 20
+      and `Tiempo de exposición (horas)` = 24
+      group by [ID Estacion], Variable, Año
+      order by [ID Estacion], variable, Año")
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+# Pasándo a coordenadas proyectadas
+coords_geo <- SpatialPoints(cbind(dat10$Longitud, 
+                                  dat10$Latitud),
+                            proj4string = CRS("+proj=longlat +datum=WGS84"))
+data_aire_geo <- data.frame(coords_geo,PM10 = dat10$Promedio)
+CRS_UTM_CO <- CRS("+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs")
+coords_utm <- spTransform(coords_geo, CRS_UTM_CO)
+
+#PM2.5 con promedio ponderado y cantidad de datos con las que se hace el promedio (pesos)
+PM10 <- data.frame(coords_utm,PM10 = dat10$Promedio, TotDat = dat10$`No. de datos`)
+PM10 <- PM10 %>%
+  rename(
+    este = coords.x1,
+    norte = coords.x2
+  )
+```
+
+### Visualización espacial de las estaciones de monitoreo
+
+A continuación, se presenta un mapa que muestra la ubicación geográfica de las 20 estaciones de monitoreo de calidad del aire en Bogotá, utilizadas para el análisis del promedio anual de PM2.5 en el año 2022. Cada punto en el mapa representa una estación, y se han incorporado tanto el color como el tamaño del punto para facilitar la interpretación visual.
+
+El color del punto indica el nivel de concentración de PM2.5: una escala de tonalidades que va desde el azul (valores bajos), pasando por el morado (valores intermedios), hasta el rojo (valores altos). Por su parte, el tamaño del punto refleja la cantidad de observaciones registradas durante el año en cada estación: puntos más pequeños corresponden a estaciones con menos datos, mientras que puntos más grandes indican estaciones con una mayor cantidad de mediciones.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Para PM10
+PM10_sf <- st_as_sf(PM10, coords = c("este", "norte"), crs = CRS_UTM_CO)
+
+ggplot() +
+  geom_sf(data = colom_shp, fill = "white", color = "black") +
+  geom_sf(data = PM10_sf, aes(color = PM10, size = TotDat), alpha = 0.8) +
+  scale_color_gradient(name = "PM10 (µg/m³)", low = "blue", high = "red") +
+  labs(title = "Mapa de estaciones PM10 - Bogotá",
+       subtitle = "Promedios con cantidad de datos como tamaño") +
+  theme_minimal()
+
+
+```
+
+En general, se observa que la mayoría de estaciones presentan valores intermedios de PM2.5 (tonos morados) y una buena cantidad de registros, con un total aproximado de 8.000 observaciones en todo el conjunto de datos. No obstante, se destacan algunos casos particulares: una estación ubicada hacia el norte de la ciudad muestra un valor especialmente bajo de PM2.5 (color azul), mientras que otra estación presenta un valor excepcionalmente alto (color rojo), aunque con pocas observaciones disponibles.
+
+Es importante señalar que algunas zonas del mapa aparecen sin estaciones de monitoreo, ya que estas corresponden a localidades donde no se realizaron mediciones, motivo por el cual dichas áreas no cuentan con datos representados en esta visualización.
+
+### Exploración de la relación entre PM2.5 y las coordenadas espaciales
+
+Con el fin de explorar la posible influencia de la ubicación geográfica sobre los niveles de PM2.5, se realizaron gráficos de dispersión que muestran el comportamiento de esta variable en función de las coordenadas espaciales: Este (X) y Norte (Y). Ambos gráficos se presentan de manera conjunta, con la relación PM2.5 vs Este a la izquierda y PM2.5 vs Norte a la derecha, lo que permite una comparación visual directa.
+
+```{r}
+#| echo: false
+#| warning: false
+# Gráficos de la variable vs coordenadas
+p3 <- ggplot(PM10, aes(x = este, y = PM10)) +
+  geom_point(color = "blue") +
+  labs(title = "PM10 vs Este", x = "Este (X)", y = "PM10") +
+  theme_minimal()
+p4 <- ggplot(PM10, aes(x = norte, y = PM10)) +
+  geom_point(color = "blue") +
+  labs(title = "PM10 vs Norte", x = "Norte (Y)", y = "PM10") +
+  theme_minimal()
+(p3 + p4)
+```
+
+En el gráfico correspondiente a la coordenada Este, se observa una posible tendencia decreciente de tipo lineal: a medida que aumenta la coordenada este, los valores de PM2.5 tienden a disminuir. Esto sugiere la existencia de un patrón espacial en dirección este-oeste. Por otro lado, el gráfico que relaciona PM2.5 con la coordenada Norte no muestra una tendencia clara ni un comportamiento sistemático, lo que indicaría una menor influencia de esta dimensión espacial sobre la variabilidad del contaminante.
+
+Además, en ambos gráficos se identifican posibles valores atípicos, representados por dos observaciones con niveles notablemente altos de PM2.5. Estos puntos podrían influir en el ajuste de modelos posteriores y deben ser tenidos en cuenta en el análisis.
+
+En conjunto, estos resultados preliminares sugieren que podría ser apropiado considerar un modelo lineal simple que incorpore únicamente la coordenada Este para capturar la tendencia espacial de los datos, al menos en una primera aproximación.
+
+#### Análisis de correlación entre PM2.5 y las coordenadas espaciales
+
+Con el objetivo de respaldar cuantitativamente las observaciones realizadas en los gráficos anteriores, se procedió a calcular la matriz de correlación entre las variables PM2.5, Este y Norte. Aunque la relación entre las coordenadas Este y Norte no es de interés en este contexto, nos enfocamos particularmente en las correlaciones de PM2.5 con cada una de las coordenadas espaciales por separado.
+
+```{r}
+#| echo: false
+d <- cor(PM10[, c("este", "norte", "PM10")])
+knitr::kable(d, caption = "Matriz de Correlación")
+```
+
+Los resultados muestran que la correlación entre PM2.5 y la coordenada Este es de aproximadamente -0.67, lo que indica una fuerte relación inversa: a medida que se avanza hacia el este de la ciudad, los valores de PM2.5 tienden a disminuir. Por su parte, la correlación entre PM2.5 y la coordenada Norte es más débil, con un valor cercano a -0.43, lo cual sugiere una tendencia decreciente más tenue o posiblemente poco significativa.
+
+```{r}
+#| echo: false
+heatmap(d, 
+        col = colorRampPalette(c("blue", "lightblue", "white" ,"red", "darkred"))(10), 
+        symm = T, 
+        main = "Matriz de Correlación PM10", 
+        margins = c(6, 6))
+```
+
+Estos resultados se visualizan mediante un mapa de calor de la matriz de correlaciones, donde se utiliza una escala de color que va desde el azul oscuro (para relaciones negativas fuertes) hasta el rojo oscuro (para relaciones positivas fuertes). En el gráfico, se aprecia claramente que la celda correspondiente a la relación entre PM2.5 y la coordenada Este se tiñe de azul oscuro, lo cual refuerza la interpretación de una asociación negativa importante. En cambio, la celda que representa la correlación con la coordenada Norte presenta un tono azul más claro, reflejando una relación más débil.
+
+### Ajuste del modelo de tendencia mediante regresión ponderada
+
+Con base en la evidencia obtenida a partir de los gráficos de dispersión y el análisis de correlación, se procedió a ajustar un modelo de regresión lineal ponderado con el fin de extraer la tendencia espacial del contaminante PM2.5. En este caso, se utilizaron como ponderaciones el total de observaciones realizadas en cada estación de monitoreo, dado que los valores de PM2.5 corresponden a promedios ponderados, y por lo tanto, las estaciones con mayor cantidad de datos tienen mayor peso en el análisis.
+
+Durante el proceso de modelado se exploraron diversas especificaciones, incluyendo modelos con términos cuadráticos, interacciones y combinaciones de ambas coordenadas. Sin embargo, tras evaluar el desempeño de cada uno, se determinó que el modelo más adecuado —en términos de simplicidad, significancia estadística y comportamiento de los residuos— fue aquel que incluye únicamente la coordenada Este como variable explicativa:
+
+$$PM 2.5 = \beta_0 +β_1⋅Este + \epsilon$$
+
+```{r}
+#| echo: false
+# MODELO PARA EXTRAER LA TENDENCIA, TENIENDO COMO PESO LOS TOTALES 
+fit2 <- lm(PM10 ~ este + I(este^2), data = PM10, weights = TotDat)
+summary(fit2)
+```
+
+Los resultados del modelo estimado son los siguientes:
+
+-   Intercepto: $\hat{\beta_0}=412.6$, con un valor p = 0.0004
+-   Pendiente: $\hat{\beta_1}=−0.0006596$, con un valor p = 0.0005
+
+Ambos coeficientes son estadísticamente significativos al 1%. La pendiente negativa confirma la tendencia decreciente de PM2.5 en dirección Este, como se había sugerido previamente. El coeficiente de determinación ajustado ($R^2$ ajustado) fue de 0.467, lo cual indica que aproximadamente un 47% de la variabilidad en los niveles de PM2.5 puede ser explicada por la ubicación este de las estaciones.
+
+Este modelo será utilizado para eliminar la tendencia y permitir un análisis más preciso de la estructura espacial residual en los pasos posteriores.
+
+### Análisis gráfico de los residuos estandarizados
+
+Una vez ajustado el modelo de tendencia, se procedió a evaluar el comportamiento de los residuos estandarizados con el fin de identificar posibles patrones espaciales residuales o la presencia de datos atípicos. Para ello, se realizaron gráficos de dispersión de los residuos estandarizados tanto frente a la coordenada Este como a la coordenada Norte, así como un diagrama de caja (boxplot).
+
+```{r}
+#| echo: false
+res2 <- residuals(fit2)
+par(mfrow = c(1, 3))
+
+# Residuales estandarizados vs Coordenada Este
+plot(PM10$este, rstandard(fit2),
+     main = "Residuales vs Coordenada Este",
+     xlab = "Este",
+     ylab = "Residuales estandarizados",
+     pch = 16, col = "darkblue")
+
+# Residuales estandarizados vs Coordenada Norte
+plot(PM10$norte, rstandard(fit2),
+     main = "Residuales vs Coordenada Norte",
+     xlab = "Norte",
+     ylab = "Residuales estandarizados",
+     pch = 16, col = "darkgreen")
+
+# Boxplot de los residuales estandarizados
+boxplot(rstandard(fit2),
+        main = "Distribución de Residuales",
+        ylab = "Residuales estandarizados",
+        col = "red",
+        ylim = c(-2, 3))
 
 par(mfrow = c(1, 1))
+
+PM10$residuals <- res2
 ```
 
-#### Estimador robusto basado en la mediana
+En ambos gráficos de dispersión se observó un comportamiento razonablemente aleatorio, lo que sugiere que la tendencia ha sido correctamente eliminada. No obstante, en ambos casos se evidencian dos posibles datos atípicos por su magnitud. Esta observación se refuerza con el boxplot, el cual identifica al menos un valor extremo, consistente con lo visto en los otros gráficos.
 
-Ante esta situación, se procedió a aplicar un estimador robusto del semivariograma, que reemplaza la media por la mediana de las diferencias absolutas elevadas a una potencia menor que 2. En este caso, se utilizó el siguiente estimador, basado en la teoría de estimación robusta:
+Aunque se utilizaron residuos estandarizados para facilitar la visualización y comparación, el análisis posterior se realizará con los residuos originales, ya que estos conservan la estructura espacial y magnitud real del error en la variable de interés.
 
-$$
-\hat{\gamma}(h) = \frac{1}{2 \times 0.457} \left( \text{me} \left( \left| Z(s_i + h) - Z(s_i) \right| \right)^{1/2} \right)^4
-$$
+A pesar de la presencia de estos puntos atípicos, no se optó por eliminarlos, ya que forman parte del fenómeno real observado. En su lugar, se utilizarán posteriormente estimadores robustos del semivariograma, los cuales son menos sensibles a la presencia de valores extremos y permiten un análisis geoestadístico confiable sin distorsión significativa por dichos puntos.
+
+#### Visualización espacial y distribución de los residuos
+
+Para complementar el análisis de los residuos, se realizó una exploración gráfica empleando funciones del paquete geoestadístico que permiten visualizar la distribución de los residuos en el espacio, así como su comportamiento multivariado.
 
 ```{r}
 #| echo: false
-# Obtenemos "manualmente" el estimador resistente del semivariograma para datos atípicos
-for (i in 1:8) {
-  vari2$v[i] <- (median(sqrt(sqrt(vari2$bin.cloud[[i+1]])))^4 / (2 * 0.457))
-}
-plot(vari2)
+# Objeto geodata
+pmgs2 <- as.geodata(PM10, coords.col = 1:2, data.col = 6, covar.col = 5)
+#summary(pmgs)
+
+# Gráficos de la geodata
+plot(pmgs2, qt.col = c("purple",
+                      "pink",
+                      "green",
+                      "yellow"))
+plot(pmgs2, scatter3d = T)
+
 ```
 
-El semivariograma resultante del estimador robusto mostró una forma más suave y coherente, eliminando el pico anómalo observado previamente en el segundo rezago. La curva obtenida ahora sugiere un comportamiento creciente, posiblemente asimilable a un modelo exponencial o esférico, lo cual indica la presencia de una dependencia espacial positiva entre los residuos.
+Se generaron tres tipos principales de gráficos de interés:
+
+-   **Gráfico de cuantiles espaciales**: Este gráfico muestra la ubicación de los residuos en el plano espacial (coordenadas Este y Norte), codificados por colores según sus cuantiles. La mezcla de colores indica que los residuos están distribuidos espacialmente sin un patrón sistemático ni agrupamientos claros, lo que confirma que la tendencia principal fue efectivamente eliminada en el ajuste del modelo.
+
+-   **Gráficos de densidad**: Este gráfico permite visualizar que la mayor concentración de residuos está cerca de valores bajos, reforzando la idea de que los residuos están centrados alrededor de cero y que no existe una fuerte dependencia espacial no explicada.
+
+**Gráfico tridimensionales**: Este gráfico permite observar la distribución de los residuos considerando simultáneamente las coordenadas Este, Norte y el valor del residuo (eje vertical). En estos gráficos se confirma que la mayoría de los residuos se concentran en valores bajos, con pocos valores altos dispersos, lo que corresponde con los datos atípicos detectados anteriormente.
+
+En conjunto, estas visualizaciones apoyan la validez del modelo ajustado y justifican avanzar al análisis geoestadístico mediante la estimación del semivariograma, considerando que los residuos representan el componente espacial de interés.
+
+### Estimación del semivariograma y uso de un estimador robusto
+
+En esta sección se procede a estimar el semivariograma empírico de los residuos estandarizados obtenidos del modelo de regresión ponderada previamente ajustado. Esta estimación tiene como objetivo analizar la dependencia espacial de los residuos, lo cual es esencial antes de aplicar cualquier modelo geoestadístico. Dado que los residuos presentaban valores atípicos, se plantea el uso de un estimador robusto del semivariograma, en lugar del estimador clásico.
+
+#### Semivariograma clásico
+
+Como primer paso, se calculó el semivariograma empírico utilizando el estimador clásico definido como:
+
+$$
+\hat{\gamma}(h) = \frac{1}{2N(h)} \sum_{i=1}^{N(h)} \left[ Z(s_i + h) - Z(s_i) \right]^2
+$$
+
+donde N(h) representa el número de pares de puntos separados por una distancia aproximadamente igual a h, y Z(s) representa el valor del proceso en la ubicación s.
+
+Para garantizar la fiabilidad estadística de las estimaciones, se consideraron únicamente aquellos rezagos h donde se cumpliera que N(h)\>6. Esto se hace para asegurar que el número de pares sea suficiente para obtener un promedio representativo en cada distancia, evitando valores extremadamente inestables o influenciados por unos pocos datos, lo cual es especialmente importante en rezagos donde los datos están dispersos o hay menor cobertura espacial.
+
+```{r}
+#| echo: false
+# Variograma empírico para los residuales usando el estimador clásico
+vari2 <- variog(pmgs2, trend = "cte", estimator.type = "classical", bin.cloud = T, pairs.min = 5, max.dist = 25000)
+
+# Graficar el variograma
+plot(vari2)
+title(main = "Variograma Empírico - Estimador Clásico\n(PM10 - Residuales)", cex.main = 1.2)
+```
+
+El semivariograma estimado con este método mostró un valor atípicamente alto en el segundo rezago, lo cual ya sugería la posible influencia de valores extremos en la estimación. Para examinar esta situación, se construyeron boxplots para las diferencias al cuadrado espaciales en cada uno de los 10 rezagos. Los boxplots revelaron la presencia sistemática de valores atípicos en múltiples distancias, confirmando que el uso del estimador clásico podía estar sesgado.
 
 ### Ajuste de modelos teóricos al semivariograma empírico
 
@@ -362,32 +880,54 @@ Los valores iniciales de los parámetros para cada modelo se tomaron de ese ajus
 #eyefit(vari2)
 
 # Ajuste de semivariogramas con diferentes modelos y condiciones
-ini1 <- c(4, 4156.58)
+ini1 <- c(18, 2700)
 fitvar1 <- variofit(vari2,
                     cov.model = "wave",
                     ini = ini1,
                     fix.nugget = TRUE,
-                    nugget = 1.72,
+                    nugget=0,
                     wei = "npairs")
 
-ini2 <- c(7.91, 14251.14)
+ini2 <- c(18, 7000)
 fitvar2 <- variofit(vari2,
-                    cov.model = "wave",
+                    cov.model = "spherical",
                     ini = ini2,
-                    fix.nugget = FALSE,
+                    fix.nugget = TRUE,
+                    nugget=0,
                     wei = "npairs")
 
-ini3 <- c(5.16, 5344.18)
+ini3 <- c(20,3250)
 fitvar3 <- variofit(vari2,
-                    cov.model = "exponential",
+                    cov.model = "gaussian",
                     ini = ini3,
-                    fix.nugget = FALSE,
+                    fix.nugget = TRUE,
+                    nugget=0,
+                    wei = "npairs")
+
+ini4 <- c(20,3250)
+fitvar4 <- variofit(vari2,
+                    cov.model = "exponential",
+                    ini = ini4,
+                    fix.nugget = TRUE,
+                    nugget=0,
+                    wei = "npairs")
+
+ini5 <- c(18, 2000)
+fitvar5 <- variofit(vari2,
+                    cov.model = "matern",
+                    ini = ini5,
+                    fix.nugget = TRUE,
+                    nugget=0,
+                    fix.kappa = F,
+                    kappa = 1.35,
                     wei = "npairs")
 
 # Gráfico del semivariograma empírico y modelos ajustados
 plot(vari2$u, vari2$v,
      xlab = "Distancia (h)",
      ylab = "Semivarianza",
+     xlim = c(0,20000),
+     ylim = c(0,28),
      cex.lab = 1.3,
      cex.axis = 1.2,
      main = "Ajuste de Modelos Teóricos al Semivariograma Empírico",
@@ -398,11 +938,14 @@ plot(vari2$u, vari2$v,
 lines(fitvar1, col = "blue", lwd = 2, lty = 1)
 lines(fitvar2, col = "red", lwd = 2, lty = 2)
 lines(fitvar3, col = "darkgreen", lwd = 2, lty = 3)
+lines(fitvar4, col = "darkorange", lwd = 2, lty = 3)
+lines(fitvar5, col = "purple", lwd = 2, lty = 3)
+
 
 legend("topleft",
-       legend = c("Wave (pepita fija)", "Wave (pepita libre)", "Exponencial (pepita libre)"),
-       col = c("blue", "red", "darkgreen"),
-       lty = 1:3,
+       legend = c("Wave", "Espherical", "gaussian ", "exponential", "matern"),
+       col = c("blue", "red", "darkgreen", "darkorange"),
+       lty = 1:5,
        lwd = 2,
        bty = "n",
        text.col = "black")
@@ -437,9 +980,11 @@ calc_rmse <- function(emp, model) {
 rmse1 <- calc_rmse(vari2, fitvar1)
 rmse2 <- calc_rmse(vari2, fitvar2)
 rmse3 <- calc_rmse(vari2, fitvar3)
+rmse4 <- calc_rmse(vari2, fitvar4)
+rmse5 <- calc_rmse(vari2, fitvar5)
 
 # Mostrar resultados
-rmse_comparacion <- c("Wave Fijo" = rmse1, "Wave Libre" = rmse2, Exponential = rmse3)
+rmse_comparacion <- c("Wave" = rmse1, "Espherical" = rmse2, "Gaussian" = rmse3,  Exponential= rmse4, Matern =rmse5)
 knitr::kable(rmse_comparacion, col.names = c("Modelo", "RMSE"))
 ```
 
@@ -454,305 +999,1604 @@ plot(vari2,
      ylab = expression(gamma(h)))
 
 # 2. Superponer el modelo teórico ajustado (fitvar1)
-lines.variomodel(fitvar1, col = "blue", lwd = 2)
+lines.variomodel(fitvar2, col = "blue", lwd = 2)
+
 
 # 3. Guardar el modelo final para interpolación posterior
 final_model <- fitvar2
 ```
 
-## **Análisis inicial de PM10**
-
-Al igual que la variable PM2.5 se realizara el análisis descriptivo geoespacial para el periodo 2022 para el material particulado en el aire con un diámetro aerodinámico menor o igual a 10 micrómetros (PM10) del cual se dispone del promedio anual proveniente de 19 estaciones de monitoreo dispersas por la ciudad.
-
 ```{r}
 #| include: false
-datos <- read.csv("calidad_aire.csv", header = T)
 
-bogota <- datos %>% 
-  filter(Código.del.Departamento == 11)
 
-PM10 <- bogota %>%
-  filter(Variable == "PM10") %>%
-  rename(ID = ID.Estacion,
-         Anio = Año) %>%
-  group_by(ID, Anio, Variable) %>%
-  mutate(Valor = row_number()) %>%
-  ungroup() %>%
-  pivot_wider(id_cols = c("ID", "Latitud", "Longitud", "Anio", "Valor"),
-              names_from = "Variable",
-              values_from = "Promedio") %>%
-  select(-Valor)
+PM10_sf <- st_as_sf(PM10, coords = c("este", "norte"), crs = CRS_UTM_CO)
 
-PM10_2022 <- PM10 %>%
-  filter(Anio == 2022)
+# Convertir a objeto Spatial
+PM10_sp <- as(PM10_sf, "Spatial")
 
-# Pasándo a coordenadas proyectadas
-coords_geo <- SpatialPoints(cbind(PM10_2022$Longitud, 
-                                  PM10_2022$Latitud),
-                            proj4string = CRS("+proj=longlat +datum=WGS84"))
-data_aire_geo <- data.frame(coords_geo, PM10 = PM10_2022$PM10)
-CRS_UTM_CO <- CRS("+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs")
-coords_utm <- spTransform(coords_geo, CRS_UTM_CO)
+# Ajustar modelo de semivariograma
+final_model <- vgm(psill = 19.522, model = "Sph", range = 4639.711, nugget = 0)
 
-PM10_2022 <- data.frame(coords_utm, PM10 = PM10_2022$PM10)
-PM10_2022 <- PM10_2022 %>%
-  rename(
-    Longitud = coords.x1,
-    Latitud = coords.x2
-  )
-```
+# Crear grilla usando límites del shapefile
+bbox_colom <- st_bbox(colom_shp)
+grilla <- expand.grid(
+  x = seq(bbox_colom["xmin"], bbox_colom["xmax"], by = 100),
+  y = seq(bbox_colom["ymin"], bbox_colom["ymax"], by = 100)
+)
+coordinates(grilla) <- ~x + y
+gridded(grilla) <- TRUE
+proj4string(grilla) <- CRS(st_crs(colom_shp)$proj4string)
 
-### Visualización valores registrados
+# Kriging indicador
+kriging_result <- krige(residuals ~ 1, PM10_sp, grilla, model = final_model)
 
-En la siguiente gráfica se observan los valores registrados por las estaciones de monitoreo para el periodo correspondiente, se observan que hay una mayor concentración de estaciones hacia la zona sur occidental de la ciudad y de igual forma en la zona mencionada se registraron los mayores registros (ilustrados por los puntos amarillos) de las partículas PM10 lo cual se puede estar vinculado a la presencia de zonas industriales en el sector de la Sevillana e igualmente al ser una de las entradas vehiculares de la ciudad
 
-```{r}
-#| echo: false
-#| message: false
-#| warning: false
-PM10_2022sf <- st_as_sf(PM10_2022, 
-                        coords = c("Longitud", "Latitud"),
-                        crs = CRS_UTM_CO)
-
-ggplot(bogota_shp) +
-  geom_sf(fill = "lightgray", color = "black") +
-  geom_sf(data = PM10_2022sf,
-          aes(color = PM10, size = PM10),
-          alpha = 0.7,
-          show.legend = c(color = TRUE, size = FALSE)) +
-scale_color_viridis_c(option = "plasma", name = "Valor") +
-  labs(title = "Partículas PM10 en Bogotá año 2022",
-       x = "Longitud",
-       y = "Latitud") +
-  theme_minimal()
-```
-
-### Relación PM10 vs coordenadas espaciales
-
-```{r}
-#| message: false
-#| warning: false
-#| include: false
-PM10_2022g <- as.geodata(PM10_2022, coords.col = 1:2, data.col = 4)
+# Resumen
+summary(kriging_result@data$var1.pred)
+summary(kriging_result@data$var1.var)
 ```
 
 ```{r}
 #| echo: false
-plot.geodata(PM10_2022g)
-```
 
-En los gráficos donde se comparan los valores registrados de partículas PM10 y los ejes coordenados se observan que para la longitud hay un patrón decreciente, de igual forma se observa que posiblemente hay un valor atípico que puede influir en los análisis posteriores. En el caso de la relación de los registros y la latitud no se observa un patrón tan notorio como en el otro eje lo cual puede indicar que la latitud no influye tanto como lo que seria la longitud.
+# 1. Convertir resultado de kriging a raster
+kriging_raster <- raster(kriging_result["var1.pred"])
 
-### Ajuste modelo de regresión
+# 2. Convertir el shapefile de Colombia a Spatial (si aún está en sf)
+colom_sp <- as(colom_shp, "Spatial")
 
-Con el fin de extraer la tendencia del proceso espacial se ajustaron varios modelos de regresión del cual se concluyo que el modelo que tiene como único predictor a la longitud es el mas idóneo dado que comparado con los otros modelos contemplados es el mas parsimonio. Los modelos contemplados y sus resultados fueron los siguientes:
+# 3. Recortar el raster con el polígono de Colombia
+kriging_raster_masked <- mask(kriging_raster, colom_sp)
 
--   $PM10=Longitud + Latitud + [Longitud*Latitud] +\epsilon$
+# 4. Convertir a dataframe para ggplot
+kriging_df <- as.data.frame(kriging_raster_masked, xy = TRUE)
+kriging_df <- na.omit(kriging_df)
 
-```{r}
-#| echo: false
-summary(lm(PM10 ~ Longitud + Latitud + I(Longitud*Latitud), data = PM10_2022))
-```
+# 5. Agregar variable de tendencia: PM2.5 ~ este
+kriging_df$este <- kriging_df$x
+kriging_df$este2 <- kriging_df$este^2  
+kriging_df$tendencia <- predict(fit2, newdata = kriging_df)
 
--   $PM10=Longitud + Latitud +\epsilon$
+# 6. Sumar kriging de residuos + tendencia
+kriging_df$PM10_estimado <- kriging_df$var1.pred + kriging_df$tendencia
 
-```{r}
-#| echo: false
-summary(lm(PM10 ~ Longitud + Latitud, data = PM10_2022))
-```
+# 7. Graficar mapa final
+library(ggplot2)
 
-El modelo que fue seleccionado
-
-$$
-PM10=Latitud + \epsilon
-$$
-
-```{r}
-#| echo: false
-summary(lm(PM10 ~ Longitud, data = PM10_2022))
-
-# Es el modelo con mejor R^2 ajustado
-lm_PM10 <- lm(PM10 ~ Longitud, data = PM10_2022)
-
-PM10_2022$residuales <- lm_PM10$residuals
-```
-
-Aunque el primer modelo que contempla como variables explicativas tanto a la latitud como a la longitud y la iteracción entre estas presento un $R^2$ ajustado superior al de los otros modelos, se tiene que ninguna de las variables de son significativas por lo cual como se menciono anteriormente se opto por el modelo que contempla únicamente como variable explicativa a la longitud puesto que presento un $R^2$ ajustado cercano al del primer modelo y que se tiene que la variable es significativa.
-
-### Análisis de residuos
-
-Después de haberse realizado el ajuste del modelo de tendencia, se observa que los residuos estandarizados no presentan un patrón definido, lo cual indica que el modelo de regresión seleccionado en efecto capturo la tendencia del proceso.
-
-```{r}
-#| echo: false
-par(mfrow = c(1, 3))
-
-# Residuales estandarizados vs Coordenada Este
-plot(PM10_2022$Longitud, rstandard(lm_PM10),
-     main = "Residuales vs Longitud",
-     xlab = "Longitud",
-     ylab = "Residuales estandarizados",
-     pch = 16, col = "darkblue")
-
-# Residuales estandarizados vs Coordenada Norte
-plot(PM10_2022$Latitud, rstandard(lm_PM10),
-     main = "Residuales vs Latitud",
-     xlab = "Latitud",
-     ylab = "Residuales estandarizados",
-     pch = 16, col = "darkgreen")
-
-# Boxplot de los residuales estandarizados
-boxplot(rstandard(lm_PM10),
-        main = "Distribución de Residuales",
-        ylab = "Residuales estandarizados",
-        col = "red",
-        ylim = c(-2, 3))
-
-par(mfrow = c(1, 1))
-```
-
-Aunque en el boxplot se observa que no hay presencia de datos atípicos, en los gráficos de los residuales estandarizados vs cada uno de los ejes se señala la presencia de un valor que se aleja significativamente del comportamiento del restante de valores lo cual coincide con lo observado anteriormente en los gráficos de las partículas PM10 por lo tanto se decide que se hará uso de estimadores robustos con el fin disminuir la posible influencia de dicho valor en los análisis posteriores.
-
-### Visualización espacial de residuos
-
-A continuación se gráfican los residuos en el espacio, en donde a diferencia de los valores PM10 no hay presencia de clusters notorios y de igual forma se removió la tendencia originalmente presenciada puesto que los residuos varían al rededor de 0 en ambos ejes espaciales.
-
-```{r}
-#| include: false
-# Datos centrados 
-PM10_2022resg <- as.geodata(PM10_2022, coords.col = 1:2, data.col = 5)
+ggplot() +
+  geom_raster(data = kriging_df, aes(x = x, y = y, fill = PM10_estimado)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradientn(
+    name = "PM10 estimado (µg/m³)",
+    colours = c("navy", "deepskyblue", "limegreen", "yellow", "orange", "firebrick"),
+    na.value = NA
+  ) +
+  labs(
+    title = "Mapa estimado de PM10",
+    subtitle = "Tendencia lineal + Kriging de residuos",
+    caption = "Interpolación con modelo gaussiano"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
 
 ```
 
 ```{r}
 #| echo: false
-plot.geodata(PM10_2022resg, scatter3d = TRUE)
+# 1. Convertir la varianza de predicción a raster
+kriging_var_raster <- raster(kriging_result["var1.var"])
+
+# 2. Recortar con el polígono de Colombia
+kriging_var_masked <- mask(kriging_var_raster, colom_sp)
+
+# 3. Convertir a dataframe para ggplot
+kriging_var_df <- as.data.frame(kriging_var_masked, xy = TRUE)
+kriging_var_df <- na.omit(kriging_var_df)
+
+# 4. Mapa de la varianza (variabilidad del kriging)
+ggplot() +
+  geom_raster(data = kriging_var_df, aes(x = x, y = y, fill = var1.var)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradientn(
+    name = "Varianza de predicción",
+    colours = c("white", "lightblue", "deepskyblue", "blue", "navy"),
+    na.value = NA
+  ) +
+  labs(
+    title = "Mapa de incertidumbre del kriging",
+    subtitle = "Varianza de predicción espacial (PM10)",
+    caption = "Entre más oscuro, mayor incertidumbre"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+
+
 ```
 
-### Estimación del semivariograma y uso de un estimador robusto
+```{r}
+#| echo: false
+library(raster)
+library(ggplot2)
 
-Se realizara la estimación del semivariograma empírico de los residuos con el fin de analizar la dependencia espacial de dichos valores.
+# 1. Raster de desviación estándar (raíz cuadrada de la varianza)
+kriging_sd_raster <- sqrt(raster(kriging_result["var1.var"]))
+
+# 2. Raster de valor estimado (ya sumaste tendencia + kriging residuos)
+# Aquí asumimos que tienes el raster de valores estimados (o creas uno desde dataframe):
+# Supongamos que kriging_df$PM25_estimado es tu estimado en dataframe
+# Primero convertir dataframe a raster (si no lo tienes):
+
+coordinates(kriging_df) <- ~x+y
+gridded(kriging_df) <- TRUE
+PM10_estimado_raster <- raster(kriging_df["PM10_estimado"])
+
+# 3. Recortar raster con polígono Colombia
+colom_sp <- as(colom_shp, "Spatial")
+kriging_sd_masked <- mask(kriging_sd_raster, colom_sp)
+PM10_estimado_masked <- mask(PM10_estimado_raster, colom_sp)
+
+# 4. Calcular raster de CV (%) 
+cv_raster <- (kriging_sd_masked / PM10_estimado_masked) * 100
+
+# 5. Convertir a dataframe para ggplot
+cv_df <- as.data.frame(cv_raster, xy = TRUE)
+cv_df <- na.omit(cv_df)
+
+# 6. Graficar coeficiente de variación (%)
+ggplot() +
+  geom_raster(data = cv_df, aes(x = x, y = y, fill = layer)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradientn(
+    name = "Coeficiente de Variación (%)",
+    colours = c("white", "yellow", "orange", "red", "darkred"),
+    na.value = NA
+  ) +
+  labs(
+    title = "Mapa del Coeficiente de Variación (CV) del Kriging",
+    subtitle = "Incertidumbre relativa de PM10",
+    caption = "CV = (Desv. estándar / Valor estimado) * 100"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+
+a2 <- data.frame(PM10_estimado = kriging_df$PM10_estimado,
+                varianza = kriging_var_df$var1.var,
+                cv = sqrt(kriging_var_df$var1.var) / abs(kriging_df$PM10_estimado)*100)
+
+```
+
+# COKRIGING
 
 ```{r}
-#| message: false
-#| warning: false
-#| include: false
-variPM10_2022 <- variog(PM10_2022resg, estimator.type = "modulus")
+#| echo: false
+
+df <- merge(PM2_5[,c(1,2,6)], PM10[,c(1,2,6)], by = c("este", "norte"), all = TRUE)
+colnames(df)[3:4] <- c("PM2.5", "PM10")  # usa los nombres que usará gstat
+
+cor(df, use = "complete.obs")
+
+summary(dist(df[,1:2]))
+
+
+coordinates(df) <- ~este + norte
+
+summary(df)
+
+df_ok <- df[!is.na(df$PM2.5) & !is.na(df$PM10), ]
+
+# Define modelo gstat para cada variable
+g <- gstat(NULL, id = "PM10", formula = PM10 ~ 1, data = df_ok)
+g <- gstat(g,    id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok)
+
+# Calcula los variogramas directos y cruzado
+# v <- variogram(g, cutoff = 14000, width = 1000)
+v <- variogram(g, cutoff=14750, width = 1050)
+
+v_filtrado <- v[v$np >= 5, ]
+plot(v_filtrado, main = "Variogramas cruzados PM2.5 y PM10")
+# 
+
+
+
 ```
 
 ```{r}
 #| echo: false
-#| message: false
-#| warning: false
-#| fig-cap: "Variograma clasico y robusto de los residuales de PM10"
-# Variograma PM10
-par(mfrow = c(1, 2))
-plot(variog(PM10_2022resg))
-plot(variog(PM10_2022resg, estimator.type = "modulus"))
+calcular_rmse_lmc <- function(ajuste_lmc, v_filtrado) {
+  modelo_PM10 <- ajuste_lmc$model$PM10
+  modelo_PM25 <- ajuste_lmc$model$PM2.5
+  modelo_cross <- ajuste_lmc$model$PM10.PM2.5
+  
+  v_PM10 <- subset(v_filtrado, id == "PM10")
+  v_PM25 <- subset(v_filtrado, id == "PM2.5")
+  v_cross <- subset(v_filtrado, id == "PM10.PM2.5")
+  
+  pred_PM10 <- variogramLine(modelo_PM10, dist_vector = v_PM10$dist)
+  pred_PM25 <- variogramLine(modelo_PM25, dist_vector = v_PM25$dist)
+  pred_cross <- variogramLine(modelo_cross, dist_vector = v_cross$dist)
+  
+  rmse_PM10 <- sqrt(mean((v_PM10$gamma - pred_PM10$gamma)^2))
+  rmse_PM25 <- sqrt(mean((v_PM25$gamma - pred_PM25$gamma)^2))
+  rmse_cross <- sqrt(mean((v_cross$gamma - pred_cross$gamma)^2))
+  
+  mean(c(rmse_PM10, rmse_PM25, rmse_cross))
+}
+
+ajustar_y_evaluar_modelos <- function(v_filtrado, g, modelos_base) {
+  resultados <- data.frame(Modelo = character(), RMSE = numeric(), stringsAsFactors = FALSE)
+  
+  for (nombre in names(modelos_base)) {
+    modelo_inicial <- modelos_base[[nombre]]
+    ajuste <- tryCatch({
+      fit.lmc(v_filtrado, g, model = modelo_inicial)
+    }, error = function(e) NULL)
+    
+    if (!is.null(ajuste)) {
+      rmse <- calcular_rmse_lmc(ajuste, v_filtrado)
+      resultados <- rbind(resultados, data.frame(Modelo = nombre, RMSE = rmse))
+    }
+  }
+  
+  resultados <- resultados[order(resultados$RMSE), ]
+  return(resultados)
+}
+
+# Define tus modelos base, por ejemplo:
+modelos_base <- list(
+  Exp6000 = vgm(psill = 5, model = "Exp", nugget = 0.0, range = 6000),
+  Exp7000 = vgm(psill = 5, model = "Exp", nugget = 0.0, range = 7000),
+  Exp8000 = vgm(psill = 5, model = "Exp", nugget = 0.0, range = 8000),
+  Exp9000 = vgm(psill = 5, model = "Exp", nugget = 0.0, range = 9000),
+  Sph6000 = vgm(psill = 5, model = "Sph", nugget = 0.0, range = 6000),
+  Sph7000 = vgm(psill = 5, model = "Sph", nugget = 0.0, range = 7000),
+  Sph8000 = vgm(psill = 5, model = "Sph", nugget = 0.0, range = 8000),
+  Sph9000 = vgm(psill = 5, model = "Sph", nugget = 0.0, range = 9000),
+  Gau6000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 6000),
+  Gau7000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 7000),
+  Gau8000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 8000),
+  Gau9000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 9000)
+)
 ```
-
-Aunque como se menciono anteriormente sobre el uso de estimadores robustos se presenta a la izquierda el semivariograma estimado usando el estimador clasico, a la derecha se presenta el semivariograma estimado usando el estimador robusto definido como:
-
-$$
-\tilde{\gamma}(\mathbf{h}) = \frac{1}{2 \left( 0.457 + \frac{0.494}{|N(\mathbf{h})|} + \frac{0.045}{|N^2(\mathbf{h})|} \right)} \left( \frac{\left( \sum_{N(\mathbf{h})} |Z(\mathbf{s} + \mathbf{h}) - Z(\mathbf{s})|^{1/2} \right)^4}{|N(\mathbf{h})|} \right)
-$$
-
-El cual corresponde al estimador resistente a datos atípicos utilizando el promedio, propuesto por Cressie.
-
-### Ajuste de modelos teóricos al semivariograma empírico
-
-Haciendo uso de la función eyefit del paquete geoR se concluyo visualmente que los tres modelos que se ajustaban al modelo empírico fueron el modelo exponencial, el esférico y el gaussiano
 
 ```{r}
 #| echo: false
-# Ajuste por eyefit
-expPM10_2022 <- variofit(variPM10_2022,
-                    cov.model = "exponential",
-                    ini = c(55, 15000),
-                    fix.nugget = TRUE,
-                    nugget = 1,
-                    weights = "cressie")
-sphPM10_2022 <- variofit(variPM10_2022,
-                         cov.model = "spherical",
-                         ini = c(40, 5000),
-                         fix.nugget = TRUE,
-                         nugget = 10,
-                         weights = "cressie")
-gauPM10_2022 <- variofit(variPM10_2022,
-                         cov.model = "gaussian",
-                         ini = c(45, 9000),
-                         fix.nugget = TRUE,
-                         nugget = 0,
-                         weights = "cressie")
-
+# Corre la comparación:
+resultados <- ajustar_y_evaluar_modelos(v_filtrado, g, modelos_base)
+print(resultados)
 ```
-
-Los tres modelos sugeridos se ajustaron con efecto pepita libre fijo. A continuación se muestran los tres modelos propuestos superpuestos al semivariograma empírico
 
 ```{r}
 #| echo: false
-plot(variPM10_2022$u, variPM10_2022$v,
-     xlab = "Distancia (h)",
-     ylab = "Semivarianza",
-     cex.lab = 1.3,
-     cex.axis = 1.2,
-     main = "Ajuste de Modelos Teóricos al Semivariograma Empírico",
-     col.main = 4,
-     cex.main = 1.3,
-     pch = 20)
+# Define el modelo con estructura esférica
+model <- vgm(psill = 20, model = "Gau", nugget = 0, range = 10000)
 
-lines(expPM10_2022, col = "blue", lwd = 2, lty = 1)
-lines(sphPM10_2022, col = "red", lwd = 2, lty = 2)
-lines(gauPM10_2022, col = "purple", lwd = 2, lty = 3)
+# Ajusta el modelo a los tres variogramas
+lmc <- fit.lmc(v_filtrado, g, model = model)
 
-legend("topright",
-       legend = c("Exponencial", "Esferico", "Gaussiano"),
-       col = c("blue", "red", "purple"),
-       lty = 1:3,
-       lwd = 2,
-       bty = "n",
-       text.col = "black")
+# Guardar sill totales antes de modificar
+sill_PM10_total <- sum(lmc$model$PM10$psill)
+sill_PM25_total <- sum(lmc$model$PM2.5$psill)
+sill_cross_total <- sum(lmc$model$`PM10.PM2.5`$psill)
+
+# Nuggets diferentes para cada componente
+nugget1 <- 5  # nugget PM10
+nugget2 <- 0.5  # nugget PM2.5
+nugget3 <- 0  # nugget cruzado
+
+# Asignar nuggets
+lmc$model$PM10$psill[1] <- nugget1
+lmc$model$PM2.5$psill[1] <- nugget2
+lmc$model$`PM10.PM2.5`$psill[1] <- nugget3
+
+# Ajustar sill gaussiano para mantener el sill total igual al original
+lmc$model$PM10$psill[2] <- sill_PM10_total - nugget1
+lmc$model$PM2.5$psill[2] <- sill_PM25_total - nugget2
+lmc$model$`PM10.PM2.5`$psill[2] <- sill_cross_total - nugget3
+
+
+# Visualiza el ajuste
+plot(v_filtrado, lmc, main = "Ajuste del modelo LMC")
+
 ```
-
-Se observa que los tres modelos se pueden estar viendo influenciados posiblemente por los valores significativamente altos que se encuentra en los primeros lags. Siendo el gaussiano el que menos se ve influenciado visualmente.
-
-Con el fin de elegir el mejor modelo de los tres sugeridos se hace uso del RMSE para cada uno, dando como resultado los siguientes valores:
 
 ```{r}
 #| echo: false
-# Calcular RMSE para cada ajuste
-rmse1 <- calc_rmse(variPM10_2022, expPM10_2022)
-rmse2 <- calc_rmse(variPM10_2022, sphPM10_2022)
-rmse3 <- calc_rmse(variPM10_2022, gauPM10_2022)
 
-# Mostrar resultados
-rmse_comparacion <- c(Exponencial = rmse1, Esferico = rmse2, Gaussiano = rmse3)
-knitr::kable(rmse_comparacion, col.names = c("Modelo", "RMSE"))
+# 0. Crear el objeto gstat con modelos ajustados desde LMC
+g_cokrig <- gstat(NULL, id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok, model = lmc$model$PM2.5)
+g_cokrig <- gstat(g_cokrig, id = "PM10", formula = PM10 ~ 1, data = df_ok, model = lmc$model$PM10)
+g_cokrig <- gstat(g_cokrig, id = c("PM2.5", "PM10"), model = lmc$model$PM10.PM2.5)
 
+
+# 1. Crear grilla basada en el shapefile
+bbox_colom <- st_bbox(colom_shp)
+grilla <- expand.grid(
+  x = seq(bbox_colom["xmin"], bbox_colom["xmax"], by = 100),
+  y = seq(bbox_colom["ymin"], bbox_colom["ymax"], by = 100)
+)
+
+#496980.4
+
+coordinates(grilla) <- ~x + y
+gridded(grilla) <- TRUE
+proj4string(grilla) <- CRS(st_crs(df_ok)$wkt)  # CRS consistente con los datos de entrenamiento
+
+# 2. Predecir con cokriging (predicción y varianza)
+pred <- predict(g_cokrig, newdata = grilla)
+
+
+
+
+
+# 1. Convertir a dataframe
+pred_df_total <- as.data.frame(pred, xy = TRUE)
+pred_df_total <- na.omit(pred_df_total)
+
+# 2. Crear variables necesarias para la tendencia (deben ser iguales a las del modelo fit1)
+pred_df_total$este <- pred_df_total$x
+pred_df_total$este2 <- pred_df_total$este^2  # si tu modelo tenía términos cuadráticos, ajusta según sea necesario
+
+# 3. Predecir la tendencia con el modelo ajustado
+pred_df_total$tendencia <- predict(fit1, newdata = pred_df_total)
+
+# 4. Sumar tendencia + cokriging de residuos
+pred_df_total$PM25_estimado <- pred_df_total$PM2.5.pred + pred_df_total$tendencia
+
+
+
+
+
+
+# 4. Convertir a raster y recortar al país (para predicción corregida con tendencia)
+pred_raster <- rasterFromXYZ(pred_df_total[, c("x", "y", "PM25_estimado")])
+colom_sp <- as(colom_shp, "Spatial")
+pred_raster_masked <- mask(pred_raster, colom_sp)
+
+# 5. Convertir a raster y recortar al país (para varianza del cokriging)
+var_raster <- raster(pred["PM2.5.var"])
+var_raster_masked <- mask(var_raster, colom_sp)
+
+# 6. Convertir a data.frame para ggplot
+pred_df <- as.data.frame(pred_raster_masked, xy = TRUE)
+names(pred_df)[3] <- "PM25_estimado"
+pred_df <- na.omit(pred_df)
+
+var_df <- as.data.frame(var_raster_masked, xy = TRUE)
+var_df <- na.omit(var_df)
+
+# 7. Visualizar la predicción puntual (concentración total)
+p5 <- ggplot() +
+  geom_raster(data = pred_df, aes(x = x, y = y, fill = PM25_estimado)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradientn(
+    name = expression("PM2.5 estimado (µg/"*m^3*")"),
+    limits = c(min(pred_df$PM25_estimado, na.rm = TRUE),
+               max(pred_df$PM25_estimado, na.rm = TRUE)),
+    colours = c("blue", "cyan", "green", "yellow", "orange", "red")
+  ) +
+  labs(
+    title = "Concentración estimada de PM2.5 (µg/m³)",
+    subtitle = "Tendencia + Cokriging de residuos (con PM10)",
+    caption = "Modelo Gaussiano ajustado con LMC"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+# 8. Visualizar la varianza (incertidumbre del cokriging)
+p6 <- ggplot() +
+  geom_raster(data = var_df, aes(x = x, y = y, fill = PM2.5.var)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradient(
+    name = "Varianza\nPM2.5",
+    low = "white",
+    high = "darkred"
+  ) +
+  labs(
+    title = "Varianza estimada de la predicción de PM2.5",
+    subtitle = "Cokriging de residuos",
+    caption = "Modelo Gaussiano ajustado con LMC"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+print(p5)
+
+print(p6)
+
+summary(var_df$PM2.5.var)
+
+
+
+
+# 9. Calcular el Coeficiente de Variación (CV) en el dataframe
+cv_df <- data.frame(
+  x = pred_df$x,
+  y = pred_df$y,
+  CV = (sqrt(var_df$PM2.5.var) / pred_df$PM25_estimado) * 100
+)
+
+# Evitar valores infinitos o NA por división cerca de cero
+cv_df$CV[is.infinite(cv_df$CV) | is.nan(cv_df$CV)] <- NA
+cv_df <- na.omit(cv_df)
+
+# 10. Graficar el Coeficiente de Variación (%)
+p_cv <- ggplot() +
+  geom_raster(data = cv_df, aes(x = x, y = y, fill = CV)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradientn(
+    name = "Coeficiente de Variación (%)",
+    colours = c("white", "yellow", "orange", "red", "darkred"),
+    na.value = NA
+  ) +
+  labs(
+    title = "Mapa del Coeficiente de Variación (CV) de PM2.5",
+    subtitle = "Incertidumbre relativa (Desv. estándar / Estimado) * 100",
+    caption = "Modelo Gaussiano ajustado con LMC"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+print(p_cv)
 ```
 
-Dado que el modelo exponencial es el modelos que presenta el menor RSME se selecciona dicho modelo.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# COKRIGING PM10
 
 ```{r}
 #| echo: false
-plot(variPM10_2022$u, variPM10_2022$v,
-     xlab = "Distancia (h)",
-     ylab = "Semivarianza",
-     cex.lab = 1.3,
-     cex.axis = 1.2,
-     main = "Ajuste de Modelos exponencial
-     al Semivariograma Empírico",
-     col.main = 4,
-     cex.main = 1.3,
-     pch = 20)
 
-lines(expPM10_2022, col = "blue", lwd = 2, lty = 1)
+df <- merge(PM2_5[,c(1,2,6)], PM10[,c(1,2,6)], by = c("este", "norte"), all = TRUE)
+colnames(df)[3:4] <- c("PM2.5", "PM10")  # usa los nombres que usará gstat
 
-legend("topright",
-       legend = "Exponencial",
-       col = "blue",
-       lty = 1,
-       lwd = 2,
-       bty = "n",
-       text.col = "black")
+cor(df, use = "complete.obs")
+
+summary(dist(df[,1:2]))
+
+
+coordinates(df) <- ~este + norte
+
+summary(df)
+
+df_ok <- df[!is.na(df$PM2.5) & !is.na(df$PM10), ]
+
+# Define modelo gstat para cada variable
+g <- gstat(NULL, id = "PM10", formula = PM10 ~ 1, data = df_ok)
+g <- gstat(g,    id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok)
+
+# Calcula los variogramas directos y cruzado
+# v <- variogram(g, cutoff = 14000, width = 1000)
+v <- variogram(g, cutoff=14750, width = 1050)
+
+v_filtrado <- v[v$np >= 5, ]
+plot(v_filtrado, main = "Variogramas cruzados PM2.5 y PM10")
+# 
+
+
+
 ```
+
+```{r}
+#| echo: false
+calcular_rmse_lmc <- function(ajuste_lmc, v_filtrado) {
+  modelo_PM10 <- ajuste_lmc$model$PM10
+  modelo_PM25 <- ajuste_lmc$model$PM2.5
+  modelo_cross <- ajuste_lmc$model$PM10.PM2.5
+  
+  v_PM10 <- subset(v_filtrado, id == "PM10")
+  v_PM25 <- subset(v_filtrado, id == "PM2.5")
+  v_cross <- subset(v_filtrado, id == "PM10.PM2.5")
+  
+  pred_PM10 <- variogramLine(modelo_PM10, dist_vector = v_PM10$dist)
+  pred_PM25 <- variogramLine(modelo_PM25, dist_vector = v_PM25$dist)
+  pred_cross <- variogramLine(modelo_cross, dist_vector = v_cross$dist)
+  
+  rmse_PM10 <- sqrt(mean((v_PM10$gamma - pred_PM10$gamma)^2))
+  rmse_PM25 <- sqrt(mean((v_PM25$gamma - pred_PM25$gamma)^2))
+  rmse_cross <- sqrt(mean((v_cross$gamma - pred_cross$gamma)^2))
+  
+  mean(c(rmse_PM10, rmse_PM25, rmse_cross))
+}
+
+ajustar_y_evaluar_modelos <- function(v_filtrado, g, modelos_base) {
+  resultados <- data.frame(Modelo = character(), RMSE = numeric(), stringsAsFactors = FALSE)
+  
+  for (nombre in names(modelos_base)) {
+    modelo_inicial <- modelos_base[[nombre]]
+    ajuste <- tryCatch({
+      fit.lmc(v_filtrado, g, model = modelo_inicial)
+    }, error = function(e) NULL)
+    
+    if (!is.null(ajuste)) {
+      rmse <- calcular_rmse_lmc(ajuste, v_filtrado)
+      resultados <- rbind(resultados, data.frame(Modelo = nombre, RMSE = rmse))
+    }
+  }
+  
+  resultados <- resultados[order(resultados$RMSE), ]
+  return(resultados)
+}
+
+# Define tus modelos base, por ejemplo:
+modelos_base <- list(
+  Exp6000 = vgm(psill = 5, model = "Exp", nugget = 0.0, range = 6000),
+  Exp7000 = vgm(psill = 5, model = "Exp", nugget = 0.0, range = 7000),
+  Exp8000 = vgm(psill = 5, model = "Exp", nugget = 0.0, range = 8000),
+  Exp9000 = vgm(psill = 5, model = "Exp", nugget = 0.0, range = 9000),
+  Sph6000 = vgm(psill = 5, model = "Sph", nugget = 0.0, range = 6000),
+  Sph7000 = vgm(psill = 5, model = "Sph", nugget = 0.0, range = 7000),
+  Sph8000 = vgm(psill = 5, model = "Sph", nugget = 0.0, range = 8000),
+  Sph9000 = vgm(psill = 5, model = "Sph", nugget = 0.0, range = 9000),
+  Gau6000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 6000),
+  Gau7000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 7000),
+  Gau8000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 8000),
+  Gau9000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 9000)
+)
+```
+
+```{r}
+#| echo: false
+# Corre la comparación:
+resultados <- ajustar_y_evaluar_modelos(v_filtrado, g, modelos_base)
+print(resultados)
+```
+
+```{r}
+#| echo: false
+# Define el modelo con estructura esférica
+model <- vgm(psill = 20, model = "Gau", nugget = 0, range = 10000)
+
+# Ajusta el modelo a los tres variogramas
+lmc <- fit.lmc(v_filtrado, g, model = model)
+
+# Guardar sill totales antes de modificar
+sill_PM10_total <- sum(lmc$model$PM10$psill)
+sill_PM25_total <- sum(lmc$model$PM2.5$psill)
+sill_cross_total <- sum(lmc$model$`PM10.PM2.5`$psill)
+
+# Nuggets diferentes para cada componente
+nugget1 <- 5  # nugget PM10
+nugget2 <- 0.5  # nugget PM2.5
+nugget3 <- 0  # nugget cruzado
+
+# Asignar nuggets
+lmc$model$PM10$psill[1] <- nugget1
+lmc$model$PM2.5$psill[1] <- nugget2
+lmc$model$`PM10.PM2.5`$psill[1] <- nugget3
+
+# Ajustar sill gaussiano para mantener el sill total igual al original
+lmc$model$PM10$psill[2] <- sill_PM10_total - nugget1
+lmc$model$PM2.5$psill[2] <- sill_PM25_total - nugget2
+lmc$model$`PM10.PM2.5`$psill[2] <- sill_cross_total - nugget3
+
+
+# Visualiza el ajuste
+plot(v_filtrado, lmc, main = "Ajuste del modelo LMC")
+
+```
+
+```{r}
+#| echo: false
+
+# 0. Crear el objeto gstat con modelos ajustados desde LMC
+g_cokrig <- gstat(NULL, id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok, model = lmc$model$PM2.5)
+g_cokrig <- gstat(g_cokrig, id = "PM10", formula = PM10 ~ 1, data = df_ok, model = lmc$model$PM10)
+g_cokrig <- gstat(g_cokrig, id = c("PM2.5", "PM10"), model = lmc$model$PM10.PM2.5)
+
+
+# 1. Crear grilla basada en el shapefile
+bbox_colom <- st_bbox(colom_shp)
+grilla <- expand.grid(
+  x = seq(bbox_colom["xmin"], bbox_colom["xmax"], by = 100),
+  y = seq(bbox_colom["ymin"], bbox_colom["ymax"], by = 100)
+)
+
+#496980.4
+
+coordinates(grilla) <- ~x + y
+gridded(grilla) <- TRUE
+proj4string(grilla) <- CRS(st_crs(df_ok)$wkt)  # CRS consistente con los datos de entrenamiento
+
+# 2. Predecir con cokriging (predicción y varianza)
+pred <- predict(g_cokrig, newdata = grilla)
+
+
+
+
+
+# 1. Convertir a dataframe
+pred_df_total <- as.data.frame(pred, xy = TRUE)
+pred_df_total <- na.omit(pred_df_total)
+
+# 2. Crear variables necesarias para la tendencia (deben ser iguales a las del modelo fit1)
+pred_df_total$este <- pred_df_total$x
+pred_df_total$este2 <- pred_df_total$este^2  # si tu modelo tenía términos cuadráticos, ajusta según sea necesario
+
+# 3. Predecir la tendencia con el modelo ajustado
+pred_df_total$tendencia <- predict(fit2, newdata = pred_df_total)
+
+# 4. Sumar tendencia + cokriging de residuos
+pred_df_total$PM10_estimado <- pred_df_total$PM10.pred + pred_df_total$tendencia
+
+
+
+
+
+
+# 4. Convertir a raster y recortar al país (para predicción corregida con tendencia)
+pred_raster <- rasterFromXYZ(pred_df_total[, c("x", "y", "PM10_estimado")])
+colom_sp <- as(colom_shp, "Spatial")
+pred_raster_masked <- mask(pred_raster, colom_sp)
+
+# 5. Convertir a raster y recortar al país (para varianza del cokriging)
+var_raster <- raster(pred["PM10.var"])
+var_raster_masked <- mask(var_raster, colom_sp)
+
+# 6. Convertir a data.frame para ggplot
+pred_df <- as.data.frame(pred_raster_masked, xy = TRUE)
+names(pred_df)[3] <- "PM10_estimado"
+pred_df <- na.omit(pred_df)
+
+var_df <- as.data.frame(var_raster_masked, xy = TRUE)
+var_df <- na.omit(var_df)
+
+# 7. Visualizar la predicción puntual (concentración total)
+p5 <- ggplot() +
+  geom_raster(data = pred_df, aes(x = x, y = y, fill = PM10_estimado)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradientn(
+    name = expression("PM10 estimado (µg/"*m^3*")"),
+    limits = c(min(pred_df$PM10_estimado, na.rm = TRUE),
+               max(pred_df$PM10_estimado, na.rm = TRUE)),
+    colours = c("blue", "cyan", "green", "yellow", "orange", "red")
+  ) +
+  labs(
+    title = "Concentración estimada de PM10 (µg/m³)",
+    subtitle = "Tendencia + Cokriging de residuos (con PM2.5)",
+    caption = "Modelo Gaussiano ajustado con LMC"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+# 8. Visualizar la varianza (incertidumbre del cokriging)
+p6 <- ggplot() +
+  geom_raster(data = var_df, aes(x = x, y = y, fill = PM10.var)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradient(
+    name = "Varianza\nPM10",
+    low = "white",
+    high = "darkred"
+  ) +
+  labs(
+    title = "Varianza estimada de la predicción de PM10",
+    subtitle = "Cokriging de residuos",
+    caption = "Modelo Gaussiano ajustado con LMC"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+print(p5)
+
+print(p6)
+
+summary(var_df$PM10.var)
+
+
+
+
+# 9. Calcular el Coeficiente de Variación (CV) en el dataframe
+cv_df <- data.frame(
+  x = pred_df$x,
+  y = pred_df$y,
+  CV = (sqrt(var_df$PM10.var) / pred_df$PM10_estimado) * 100
+)
+
+# Evitar valores infinitos o NA por división cerca de cero
+cv_df$CV[is.infinite(cv_df$CV) | is.nan(cv_df$CV)] <- NA
+cv_df <- na.omit(cv_df)
+
+# 10. Graficar el Coeficiente de Variación (%)
+p_cv <- ggplot() +
+  geom_raster(data = cv_df, aes(x = x, y = y, fill = CV)) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  scale_fill_gradientn(
+    name = "Coeficiente de Variación (%)",
+    colours = c("white", "yellow", "orange", "red", "darkred"),
+    na.value = NA
+  ) +
+  labs(
+    title = "Mapa del Coeficiente de Variación (CV) de PM10",
+    subtitle = "Incertidumbre relativa (Desv. estándar / Estimado) * 100",
+    caption = "Modelo Gaussiano ajustado con LMC"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  coord_sf()
+
+print(p_cv)
+```
+<!-- # COKRIGING #### -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- df <- merge(PM10[,1:3], PM2_5[1:3], by = c("este", "norte"), all = TRUE) -->
+
+<!-- colnames(df)[3:4] <- c("PM10", "PM2.5") -->
+
+<!-- cor(df, use = "complete.obs") -->
+
+<!-- summary(dist(df[,1:2])) -->
+
+<!-- coordinates(df) <- ~este + norte -->
+
+<!-- summary(df) -->
+
+<!-- df_ok <- df[!is.na(df$PM2.5) & !is.na(df$PM10), ] -->
+
+<!-- # Define modelo gstat para cada variable -->
+
+<!-- g <- gstat(NULL, id = "PM10", formula = PM10 ~ 1, data = df_ok) -->
+
+<!-- g <- gstat(g,    id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok) -->
+
+<!-- # Calcula los variogramas directos y cruzado -->
+
+<!-- # v <- variogram(g, cutoff = 14000, width = 1000) -->
+
+<!-- v <- variogram(g, cutoff=15707.75, width = 1208.288) -->
+
+<!-- v_filtrado <- v[v$np >= 5, ] -->
+
+<!-- plot(v_filtrado, main = "Variogramas cruzados PM2.5 y PM10") -->
+
+<!-- #  -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- calcular_rmse_lmc <- function(ajuste_lmc, v_filtrado) { -->
+
+<!--   modelo_PM10 <- ajuste_lmc$model$PM10 -->
+
+<!--   modelo_PM25 <- ajuste_lmc$model$PM2.5 -->
+
+<!--   modelo_cross <- ajuste_lmc$model$PM10.PM2.5 -->
+
+<!--   v_PM10 <- subset(v_filtrado, id == "PM10") -->
+
+<!--   v_PM25 <- subset(v_filtrado, id == "PM2.5") -->
+
+<!--   v_cross <- subset(v_filtrado, id == "PM10.PM2.5") -->
+
+<!--   pred_PM10 <- variogramLine(modelo_PM10, dist_vector = v_PM10$dist) -->
+
+<!--   pred_PM25 <- variogramLine(modelo_PM25, dist_vector = v_PM25$dist) -->
+
+<!--   pred_cross <- variogramLine(modelo_cross, dist_vector = v_cross$dist) -->
+
+<!--   rmse_PM10 <- sqrt(mean((v_PM10$gamma - pred_PM10$gamma)^2)) -->
+
+<!--   rmse_PM25 <- sqrt(mean((v_PM25$gamma - pred_PM25$gamma)^2)) -->
+
+<!--   rmse_cross <- sqrt(mean((v_cross$gamma - pred_cross$gamma)^2)) -->
+
+<!--   mean(c(rmse_PM10, rmse_PM25, rmse_cross)) -->
+
+<!-- } -->
+
+<!-- ajustar_y_evaluar_modelos <- function(v_filtrado, g, modelos_base) { -->
+
+<!--   resultados <- data.frame(Modelo = character(), RMSE = numeric(), stringsAsFactors = FALSE) -->
+
+<!--   for (nombre in names(modelos_base)) { -->
+
+<!--     modelo_inicial <- modelos_base[[nombre]] -->
+
+<!--     ajuste <- tryCatch({ -->
+
+<!--       fit.lmc(v_filtrado, g, model = modelo_inicial) -->
+
+<!--     }, error = function(e) NULL) -->
+
+<!--     if (!is.null(ajuste)) { -->
+
+<!--       rmse <- calcular_rmse_lmc(ajuste, v_filtrado) -->
+
+<!--       resultados <- rbind(resultados, data.frame(Modelo = nombre, RMSE = rmse)) -->
+
+<!--     } -->
+
+<!--   } -->
+
+<!--   resultados <- resultados[order(resultados$RMSE), ] -->
+
+<!--   return(resultados) -->
+
+<!-- } -->
+
+<!-- # Define tus modelos base, por ejemplo: -->
+
+<!-- modelos_base <- list( -->
+
+<!--   Exp6000 = vgm(psill = 0.15, model = "Exp", nugget = 0.05, range = 6000), -->
+
+<!--   Exp7000 = vgm(psill = 0.15, model = "Exp", nugget = 0.05, range = 7000), -->
+
+<!--   Exp8000 = vgm(psill = 0.15, model = "Exp", nugget = 0.05, range = 8000), -->
+
+<!--   Exp9000 = vgm(psill = 0.15, model = "Exp", nugget = 0.05, range = 9000), -->
+
+<!--   Sph6000 = vgm(psill = 0.15, model = "Sph", nugget = 0.05, range = 6000), -->
+
+<!--   Sph7000 = vgm(psill = 0.15, model = "Sph", nugget = 0.05, range = 7000), -->
+
+<!--   Sph8000 = vgm(psill = 0.15, model = "Sph", nugget = 0.05, range = 8000), -->
+
+<!--   Sph9000 = vgm(psill = 0.15, model = "Sph", nugget = 0.05, range = 9000), -->
+
+<!--   Gau6000 = vgm(psill = 0.15, model = "Gau", nugget = 0.05, range = 6000), -->
+
+<!--   Gau7000 = vgm(psill = 0.15, model = "Gau", nugget = 0.05, range = 7000), -->
+
+<!--   Gau8000 = vgm(psill = 0.15, model = "Gau", nugget = 0.05, range = 8000), -->
+
+<!--   Gau9000 = vgm(psill = 0.15, model = "Gau", nugget = 0.05, range = 9000) -->
+
+<!-- ) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- # Corre la comparación: -->
+
+<!-- resultados <- ajustar_y_evaluar_modelos(v_filtrado, g, modelos_base) -->
+
+<!-- print(resultados) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- # Define el modelo con estructura esférica -->
+
+<!-- model <- vgm(psill = 0.15, model = "Gau", nugget = 0.05, range = 5000) -->
+
+<!-- # Ajusta el modelo a los tres variogramas -->
+
+<!-- lmc <- fit.lmc(v_filtrado, g, model = model) -->
+
+<!-- # Visualiza el ajuste -->
+
+<!-- plot(v_filtrado, lmc, main = "Ajuste del modelo LMC") -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- # 0. Crear el objeto gstat con modelos ajustados desde LMC -->
+
+<!-- g_cokrig <- gstat(NULL, id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok, model = lmc$model$PM2.5) -->
+
+<!-- g_cokrig <- gstat(g_cokrig, id = "PM10", formula = PM10 ~ 1, data = df_ok, model = lmc$model$PM10) -->
+
+<!-- g_cokrig <- gstat(g_cokrig, id = c("PM2.5", "PM10"), model = lmc$model$PM10.PM2.5) -->
+
+<!-- # 1. Crear grilla basada en el shapefile -->
+
+<!-- bbox_colom <- st_bbox(colom_shp) -->
+
+<!-- grilla <- expand.grid( -->
+
+<!--   x = seq(bbox_colom["xmin"], bbox_colom["xmax"], by = 100), -->
+
+<!--   y = seq(bbox_colom["ymin"], bbox_colom["ymax"], by = 100) -->
+
+<!-- ) -->
+
+<!-- #496980.4 -->
+
+<!-- coordinates(grilla) <- ~x + y -->
+
+<!-- gridded(grilla) <- TRUE -->
+
+<!-- proj4string(grilla) <- CRS(st_crs(df_ok)$wkt)  # CRS consistente con los datos de entrenamiento -->
+
+<!-- # 2. Predecir con cokriging (predicción y varianza) -->
+
+<!-- pred <- predict(g_cokrig, newdata = grilla) -->
+
+<!-- # 3. Limitar la predicción a [0, 1] -->
+
+<!-- pred$PM2.5.pred[pred$PM2.5.pred < 0] <- 0 -->
+
+<!-- pred$PM2.5.pred[pred$PM2.5.pred > 1] <- 1 -->
+
+<!-- # 4. Convertir a raster y recortar al país (para predicción) -->
+
+<!-- pred_raster <- raster(pred["PM2.5.pred"]) -->
+
+<!-- colom_sp <- as(colom_shp, "Spatial") -->
+
+<!-- pred_raster_masked <- mask(pred_raster, colom_sp) -->
+
+<!-- # 5. Convertir a raster y recortar al país (para varianza) -->
+
+<!-- var_raster <- raster(pred["PM2.5.var"])  # O el nombre correcto de la varianza en pred -->
+
+<!-- var_raster_masked <- mask(var_raster, colom_sp) -->
+
+<!-- # 6. Convertir a data.frame para ggplot -->
+
+<!-- pred_df <- as.data.frame(pred_raster_masked, xy = TRUE) -->
+
+<!-- pred_df <- na.omit(pred_df) -->
+
+<!-- var_df <- as.data.frame(var_raster_masked, xy = TRUE) -->
+
+<!-- var_df <- na.omit(var_df) -->
+
+<!-- # 7. Visualizar la predicción puntual -->
+
+<!-- p1 <- ggplot() + -->
+
+<!--   geom_raster(data = pred_df, aes(x = x, y = y, fill = PM2.5.pred)) + -->
+
+<!--   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) + -->
+
+<!--   scale_fill_gradientn( -->
+
+<!--     name = "Probabilidad\nPM2.5 ≥ 25", -->
+
+<!--     limits = c(0, 1), -->
+
+<!--     colours = c("blue", "cyan", "green", "yellow", "orange", "red") -->
+
+<!--   ) + -->
+
+<!--   labs( -->
+
+<!--     title = "Probabilidad estimada de PM2.5 ≥ 15 µg/m³", -->
+
+<!--     subtitle = "Cokriging Indicador con PM10 como covariable", -->
+
+<!--     caption = "Modelo Gaussiano ajustado con LMC" -->
+
+<!--   ) + -->
+
+<!--   theme_minimal() + -->
+
+<!--   theme( -->
+
+<!--     legend.position = "right", -->
+
+<!--     axis.title = element_blank(), -->
+
+<!--     plot.title = element_text(face = "bold", hjust = 0.5), -->
+
+<!--     plot.subtitle = element_text(hjust = 0.5) -->
+
+<!--   ) + -->
+
+<!--   coord_sf() -->
+
+<!-- # 8. Visualizar la varianza (incertidumbre) de la predicción -->
+
+<!-- p2 <- ggplot() + -->
+
+<!--   geom_raster(data = var_df, aes(x = x, y = y, fill = PM2.5.var)) + -->
+
+<!--   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) + -->
+
+<!--   scale_fill_gradient( -->
+
+<!--     name = "Varianza\nPM2.5", -->
+
+<!--     low = "white", -->
+
+<!--     high = "darkred", -->
+
+<!--   ) + -->
+
+<!--   labs( -->
+
+<!--     title = "Varianza estimada de la predicción de PM2.5", -->
+
+<!--     subtitle = "Indicador Cokriging", -->
+
+<!--     caption = "Modelo Gaussiano ajustado con LMC" -->
+
+<!--   ) + -->
+
+<!--   theme_minimal() + -->
+
+<!--   theme( -->
+
+<!--     legend.position = "right", -->
+
+<!--     axis.title = element_blank(), -->
+
+<!--     plot.title = element_text(face = "bold", hjust = 0.5), -->
+
+<!--     plot.subtitle = element_text(hjust = 0.5) -->
+
+<!--   ) + -->
+
+<!--   coord_sf() -->
+
+<!-- # 9. Mostrar ambos gráficos (puedes elegir imprimir uno a la vez o usar gridExtra/patchwork para juntarlos) -->
+
+<!-- print(p1) -->
+
+<!-- print(p2) -->
+
+<!-- summary(var_df$PM2.5.var) -->
+
+<!-- ``` -->
+
+<!-- ## **Análisis inicial de PM10** -->
+
+<!-- Al igual que la variable PM2.5 se realizara el análisis descriptivo geoespacial para el periodo 2022 para el material particulado en el aire con un diámetro aerodinámico menor o igual a 10 micrómetros (PM10) del cual se dispone del promedio anual proveniente de 19 estaciones de monitoreo dispersas por la ciudad. -->
+
+<!-- ```{r} -->
+
+<!-- #| include: false -->
+
+<!-- datos <- read.csv("calidad_aire.csv", header = T) -->
+
+<!-- bogota <- datos %>%  -->
+
+<!--   filter(Código.del.Departamento == 11) -->
+
+<!-- PM10 <- bogota %>% -->
+
+<!--   filter(Variable == "PM10") %>% -->
+
+<!--   rename(ID = ID.Estacion, -->
+
+<!--          Anio = Año) %>% -->
+
+<!--   group_by(ID, Anio, Variable) %>% -->
+
+<!--   mutate(Valor = row_number()) %>% -->
+
+<!--   ungroup() %>% -->
+
+<!--   pivot_wider(id_cols = c("ID", "Latitud", "Longitud", "Anio", "Valor"), -->
+
+<!--               names_from = "Variable", -->
+
+<!--               values_from = "Promedio") %>% -->
+
+<!--   select(-Valor) -->
+
+<!-- PM10_2022 <- PM10 %>% -->
+
+<!--   filter(Anio == 2022) -->
+
+<!-- # Pasándo a coordenadas proyectadas -->
+
+<!-- coords_geo <- SpatialPoints(cbind(PM10_2022$Longitud,  -->
+
+<!--                                   PM10_2022$Latitud), -->
+
+<!--                             proj4string = CRS("+proj=longlat +datum=WGS84")) -->
+
+<!-- data_aire_geo <- data.frame(coords_geo, PM10 = PM10_2022$PM10) -->
+
+<!-- CRS_UTM_CO <- CRS("+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs") -->
+
+<!-- coords_utm <- spTransform(coords_geo, CRS_UTM_CO) -->
+
+<!-- PM10_2022 <- data.frame(coords_utm, PM10 = PM10_2022$PM10) -->
+
+<!-- PM10_2022 <- PM10_2022 %>% -->
+
+<!--   rename( -->
+
+<!--     Longitud = coords.x1, -->
+
+<!--     Latitud = coords.x2 -->
+
+<!--   ) -->
+
+<!-- ``` -->
+
+<!-- ### Visualización valores registrados -->
+
+<!-- En la siguiente gráfica se observan los valores registrados por las estaciones de monitoreo para el periodo correspondiente, se observan que hay una mayor concentración de estaciones hacia la zona sur occidental de la ciudad y de igual forma en la zona mencionada se registraron los mayores registros (ilustrados por los puntos amarillos) de las partículas PM10 lo cual se puede estar vinculado a la presencia de zonas industriales en el sector de la Sevillana e igualmente al ser una de las entradas vehiculares de la ciudad -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- #| message: false -->
+
+<!-- #| warning: false -->
+
+<!-- PM10_2022sf <- st_as_sf(PM10_2022,  -->
+
+<!--                         coords = c("Longitud", "Latitud"), -->
+
+<!--                         crs = CRS_UTM_CO) -->
+
+<!-- ggplot(bogota_shp) + -->
+
+<!--   geom_sf(fill = "lightgray", color = "black") + -->
+
+<!--   geom_sf(data = PM10_2022sf, -->
+
+<!--           aes(color = PM10, size = PM10), -->
+
+<!--           alpha = 0.7, -->
+
+<!--           show.legend = c(color = TRUE, size = FALSE)) + -->
+
+<!-- scale_color_viridis_c(option = "plasma", name = "Valor") + -->
+
+<!--   labs(title = "Partículas PM10 en Bogotá año 2022", -->
+
+<!--        x = "Longitud", -->
+
+<!--        y = "Latitud") + -->
+
+<!--   theme_minimal() -->
+
+<!-- ``` -->
+
+<!-- ### Relación PM10 vs coordenadas espaciales -->
+
+<!-- ```{r} -->
+
+<!-- #| message: false -->
+
+<!-- #| warning: false -->
+
+<!-- #| include: false -->
+
+<!-- PM10_2022g <- as.geodata(PM10_2022, coords.col = 1:2, data.col = 4) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- plot.geodata(PM10_2022g) -->
+
+<!-- ``` -->
+
+<!-- En los gráficos donde se comparan los valores registrados de partículas PM10 y los ejes coordenados se observan que para la longitud hay un patrón decreciente, de igual forma se observa que posiblemente hay un valor atípico que puede influir en los análisis posteriores. En el caso de la relación de los registros y la latitud no se observa un patrón tan notorio como en el otro eje lo cual puede indicar que la latitud no influye tanto como lo que seria la longitud. -->
+
+<!-- ### Ajuste modelo de regresión -->
+
+<!-- Con el fin de extraer la tendencia del proceso espacial se ajustaron varios modelos de regresión del cual se concluyo que el modelo que tiene como único predictor a la longitud es el mas idóneo dado que comparado con los otros modelos contemplados es el mas parsimonio. Los modelos contemplados y sus resultados fueron los siguientes: -->
+
+<!-- -   $PM10=Longitud + Latitud + [Longitud*Latitud] +\epsilon$ -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- summary(lm(PM10 ~ Longitud + Latitud + I(Longitud*Latitud), data = PM10_2022)) -->
+
+<!-- ``` -->
+
+<!-- -   $PM10=Longitud + Latitud +\epsilon$ -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- summary(lm(PM10 ~ Longitud + Latitud, data = PM10_2022)) -->
+
+<!-- ``` -->
+
+<!-- El modelo que fue seleccionado -->
+
+<!-- $$ -->
+
+<!-- PM10=Latitud + \epsilon -->
+
+<!-- $$ -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- summary(lm(PM10 ~ Longitud, data = PM10_2022)) -->
+
+<!-- # Es el modelo con mejor R^2 ajustado -->
+
+<!-- lm_PM10 <- lm(PM10 ~ Longitud, data = PM10_2022) -->
+
+<!-- PM10_2022$residuales <- lm_PM10$residuals -->
+
+<!-- ``` -->
+
+<!-- Aunque el primer modelo que contempla como variables explicativas tanto a la latitud como a la longitud y la iteracción entre estas presento un $R^2$ ajustado superior al de los otros modelos, se tiene que ninguna de las variables de son significativas por lo cual como se menciono anteriormente se opto por el modelo que contempla únicamente como variable explicativa a la longitud puesto que presento un $R^2$ ajustado cercano al del primer modelo y que se tiene que la variable es significativa. -->
+
+<!-- ### Análisis de residuos -->
+
+<!-- Después de haberse realizado el ajuste del modelo de tendencia, se observa que los residuos estandarizados no presentan un patrón definido, lo cual indica que el modelo de regresión seleccionado en efecto capturo la tendencia del proceso. -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- par(mfrow = c(1, 3)) -->
+
+<!-- # Residuales estandarizados vs Coordenada Este -->
+
+<!-- plot(PM10_2022$Longitud, rstandard(lm_PM10), -->
+
+<!--      main = "Residuales vs Longitud", -->
+
+<!--      xlab = "Longitud", -->
+
+<!--      ylab = "Residuales estandarizados", -->
+
+<!--      pch = 16, col = "darkblue") -->
+
+<!-- # Residuales estandarizados vs Coordenada Norte -->
+
+<!-- plot(PM10_2022$Latitud, rstandard(lm_PM10), -->
+
+<!--      main = "Residuales vs Latitud", -->
+
+<!--      xlab = "Latitud", -->
+
+<!--      ylab = "Residuales estandarizados", -->
+
+<!--      pch = 16, col = "darkgreen") -->
+
+<!-- # Boxplot de los residuales estandarizados -->
+
+<!-- boxplot(rstandard(lm_PM10), -->
+
+<!--         main = "Distribución de Residuales", -->
+
+<!--         ylab = "Residuales estandarizados", -->
+
+<!--         col = "red", -->
+
+<!--         ylim = c(-2, 3)) -->
+
+<!-- par(mfrow = c(1, 1)) -->
+
+<!-- ``` -->
+
+<!-- Aunque en el boxplot se observa que no hay presencia de datos atípicos, en los gráficos de los residuales estandarizados vs cada uno de los ejes se señala la presencia de un valor que se aleja significativamente del comportamiento del restante de valores lo cual coincide con lo observado anteriormente en los gráficos de las partículas PM10 por lo tanto se decide que se hará uso de estimadores robustos con el fin disminuir la posible influencia de dicho valor en los análisis posteriores. -->
+
+<!-- ### Visualización espacial de residuos -->
+
+<!-- A continuación se gráfican los residuos en el espacio, en donde a diferencia de los valores PM10 no hay presencia de clusters notorios y de igual forma se removió la tendencia originalmente presenciada puesto que los residuos varían al rededor de 0 en ambos ejes espaciales. -->
+
+<!-- ```{r} -->
+
+<!-- #| include: false -->
+
+<!-- # Datos centrados  -->
+
+<!-- PM10_2022resg <- as.geodata(PM10_2022, coords.col = 1:2, data.col = 5) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- plot.geodata(PM10_2022resg, scatter3d = TRUE) -->
+
+<!-- ``` -->
+
+<!-- ### Estimación del semivariograma y uso de un estimador robusto -->
+
+<!-- Se realizara la estimación del semivariograma empírico de los residuos con el fin de analizar la dependencia espacial de dichos valores. -->
+
+<!-- ```{r} -->
+
+<!-- #| message: false -->
+
+<!-- #| warning: false -->
+
+<!-- #| include: false -->
+
+<!-- variPM10_2022 <- variog(PM10_2022resg, estimator.type = "modulus") -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- #| message: false -->
+
+<!-- #| warning: false -->
+
+<!-- #| fig-cap: "Variograma clasico y robusto de los residuales de PM10" -->
+
+<!-- # Variograma PM10 -->
+
+<!-- par(mfrow = c(1, 2)) -->
+
+<!-- plot(variog(PM10_2022resg)) -->
+
+<!-- plot(variog(PM10_2022resg, estimator.type = "modulus")) -->
+
+<!-- ``` -->
+
+<!-- Aunque como se menciono anteriormente sobre el uso de estimadores robustos se presenta a la izquierda el semivariograma estimado usando el estimador clasico, a la derecha se presenta el semivariograma estimado usando el estimador robusto definido como: -->
+
+<!-- $$ -->
+
+<!-- \tilde{\gamma}(\mathbf{h}) = \frac{1}{2 \left( 0.457 + \frac{0.494}{|N(\mathbf{h})|} + \frac{0.045}{|N^2(\mathbf{h})|} \right)} \left( \frac{\left( \sum_{N(\mathbf{h})} |Z(\mathbf{s} + \mathbf{h}) - Z(\mathbf{s})|^{1/2} \right)^4}{|N(\mathbf{h})|} \right) -->
+
+<!-- $$ -->
+
+<!-- El cual corresponde al estimador resistente a datos atípicos utilizando el promedio, propuesto por Cressie. -->
+
+<!-- ### Ajuste de modelos teóricos al semivariograma empírico -->
+
+<!-- Haciendo uso de la función eyefit del paquete geoR se concluyo visualmente que los tres modelos que se ajustaban al modelo empírico fueron el modelo exponencial, el esférico y el gaussiano -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- # Ajuste por eyefit -->
+
+<!-- expPM10_2022 <- variofit(variPM10_2022, -->
+
+<!--                     cov.model = "exponential", -->
+
+<!--                     ini = c(55, 15000), -->
+
+<!--                     fix.nugget = TRUE, -->
+
+<!--                     nugget = 1, -->
+
+<!--                     weights = "cressie") -->
+
+<!-- sphPM10_2022 <- variofit(variPM10_2022, -->
+
+<!--                          cov.model = "spherical", -->
+
+<!--                          ini = c(40, 5000), -->
+
+<!--                          fix.nugget = TRUE, -->
+
+<!--                          nugget = 10, -->
+
+<!--                          weights = "cressie") -->
+
+<!-- gauPM10_2022 <- variofit(variPM10_2022, -->
+
+<!--                          cov.model = "gaussian", -->
+
+<!--                          ini = c(45, 9000), -->
+
+<!--                          fix.nugget = TRUE, -->
+
+<!--                          nugget = 0, -->
+
+<!--                          weights = "cressie") -->
+
+<!-- ``` -->
+
+<!-- Los tres modelos sugeridos se ajustaron con efecto pepita libre fijo. A continuación se muestran los tres modelos propuestos superpuestos al semivariograma empírico -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- plot(variPM10_2022$u, variPM10_2022$v, -->
+
+<!--      xlab = "Distancia (h)", -->
+
+<!--      ylab = "Semivarianza", -->
+
+<!--      cex.lab = 1.3, -->
+
+<!--      cex.axis = 1.2, -->
+
+<!--      main = "Ajuste de Modelos Teóricos al Semivariograma Empírico", -->
+
+<!--      col.main = 4, -->
+
+<!--      cex.main = 1.3, -->
+
+<!--      pch = 20) -->
+
+<!-- lines(expPM10_2022, col = "blue", lwd = 2, lty = 1) -->
+
+<!-- lines(sphPM10_2022, col = "red", lwd = 2, lty = 2) -->
+
+<!-- lines(gauPM10_2022, col = "purple", lwd = 2, lty = 3) -->
+
+<!-- legend("topright", -->
+
+<!--        legend = c("Exponencial", "Esferico", "Gaussiano"), -->
+
+<!--        col = c("blue", "red", "purple"), -->
+
+<!--        lty = 1:3, -->
+
+<!--        lwd = 2, -->
+
+<!--        bty = "n", -->
+
+<!--        text.col = "black") -->
+
+<!-- ``` -->
+
+<!-- Se observa que los tres modelos se pueden estar viendo influenciados posiblemente por los valores significativamente altos que se encuentra en los primeros lags. Siendo el gaussiano el que menos se ve influenciado visualmente. -->
+
+<!-- Con el fin de elegir el mejor modelo de los tres sugeridos se hace uso del RMSE para cada uno, dando como resultado los siguientes valores: -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- # Calcular RMSE para cada ajuste -->
+
+<!-- rmse1 <- calc_rmse(variPM10_2022, expPM10_2022) -->
+
+<!-- rmse2 <- calc_rmse(variPM10_2022, sphPM10_2022) -->
+
+<!-- rmse3 <- calc_rmse(variPM10_2022, gauPM10_2022) -->
+
+<!-- # Mostrar resultados -->
+
+<!-- rmse_comparacion <- c(Exponencial = rmse1, Esferico = rmse2, Gaussiano = rmse3) -->
+
+<!-- knitr::kable(rmse_comparacion, col.names = c("Modelo", "RMSE")) -->
+
+<!-- ``` -->
+
+<!-- Dado que el modelo exponencial es el modelos que presenta el menor RSME se selecciona dicho modelo. -->
+
+<!-- ```{r} -->
+
+<!-- #| echo: false -->
+
+<!-- plot(variPM10_2022$u, variPM10_2022$v, -->
+
+<!--      xlab = "Distancia (h)", -->
+
+<!--      ylab = "Semivarianza", -->
+
+<!--      cex.lab = 1.3, -->
+
+<!--      cex.axis = 1.2, -->
+
+<!--      main = "Ajuste de Modelos exponencial -->
+
+<!--      al Semivariograma Empírico", -->
+
+<!--      col.main = 4, -->
+
+<!--      cex.main = 1.3, -->
+
+<!--      pch = 20) -->
+
+<!-- lines(expPM10_2022, col = "blue", lwd = 2, lty = 1) -->
+
+<!-- legend("topright", -->
+
+<!--        legend = "Exponencial", -->
+
+<!--        col = "blue", -->
+
+<!--        lty = 1, -->
+
+<!--        lwd = 2, -->
+
+<!--        bty = "n", -->
+
+<!--        text.col = "black") -->
+
+<!-- ``` -->
