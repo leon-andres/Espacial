@@ -1103,19 +1103,10 @@ window.Quarto = {
 <h1>ANÁLISIS ESPACIO - TEMPORAL PM2.5</h1>
 <p>El siguiente análisis corresponde al contaminante PM2.5 en la ciudad de Bogotá durante el período comprendido entre 2020 y 2021. Se cuenta con datos diarios recogidos en 19 estaciones de monitoreo distribuidas a lo largo de la ciudad. El objetivo principal de este estudio es realizar un análisis espacio-temporal para caracterizar la distribución y variabilidad de las concentraciones de PM2.5. Para ello, se empleará la técnica de interpolación geoestadística de kriging espacial, que permitirá estimar los niveles de este contaminante en áreas no monitoreadas y generar mapas de distribución que faciliten la identificación de las zonas más afectadas y los patrones de dispersión a lo largo del tiempo.</p>
 <div class="cell">
-<div class="cell-output cell-output-stdout">
-<pre><code>Reading layer `loca' from data source 
-  `H:\My Drive\Espacial\Parciales\mapa\loca.shp' using driver `ESRI Shapefile'
-Simple feature collection with 20 features and 6 fields
-Geometry type: POLYGON
-Dimension:     XY
-Bounding box:  xmin: -74.44978 ymin: 3.73103 xmax: -73.98653 ymax: 4.836779
-Geodetic CRS:  MAGNA-SIRGAS</code></pre>
-</div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-56-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-57-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -1127,16 +1118,16 @@ Geodetic CRS:  MAGNA-SIRGAS</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-57-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-58-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>La figura presenta tres gráficos que ilustran las relaciones iniciales en los datos. Los dos gráficos superiores muestran la concentración de PM2.5 ​ frente a las coordenadas geográficas (Este y Norte), en el cual no se observa una tendencia lineal clara sin embargo, los datos se presentan en conglomerados verticales, que corresponden a las ubicaciones fijas de las estaciones de monitoreo. Se aprecian variaciones significativas en los niveles de PM2.5 ​ en cada una de estas ubicaciones, lo que sugiere que la contaminación no es homogénea en la ciudad y justifica el uso de métodos de interpolación espacial como el kriging. El gráfico inferior muestra la serie temporal de las mediciones de PM2.5, en dicho gráfico se puede identificar un patrón estacional. Los niveles de PM2.5 ​ parecen ser más bajos y estables durante noviembre y diciembre, mientras que se observa un incremento general en las concentraciones y en la frecuencia de picos elevados durante enero y, especialmente, febrero. Este comportamiento se puede explicar por las condiciones meteorológicas de Bogotá, donde los primeros meses del año suelen ser más secos, favoreciendo la acumulación de contaminantes.</p>
+<p>La figura presenta tres gráficos que ilustran las relaciones iniciales en los datos. Los dos gráficos superiores muestran la concentración de PM2.5 frente a las coordenadas geográficas (Este y Norte), en el cual no se observa una tendencia lineal clara sin embargo, los datos se presentan en conglomerados verticales, que corresponden a las ubicaciones fijas de las estaciones de monitoreo. Se aprecian variaciones significativas en los niveles de PM2.5 en cada una de estas ubicaciones, lo que sugiere que la contaminación no es homogénea en la ciudad y justifica el uso de métodos de interpolación espacial como el kriging. El gráfico inferior muestra la serie temporal de las mediciones de PM2.5, en dicho gráfico se puede identificar un patrón estacional. Los niveles de PM2.5 parecen ser más bajos y estables durante noviembre y diciembre, mientras que se observa un incremento general en las concentraciones y en la frecuencia de picos elevados durante enero y, especialmente, febrero. Este comportamiento se puede explicar por las condiciones meteorológicas de Bogotá, donde los primeros meses del año suelen ser más secos, favoreciendo la acumulación de contaminantes.</p>
 </section>
 <section id="ajuste-del-modelo-de-tendencia-mediante-regresión" class="level2">
 <h2 class="anchored" data-anchor-id="ajuste-del-modelo-de-tendencia-mediante-regresión">Ajuste del modelo de tendencia mediante regresión</h2>
-<p>Se ajusto un modelo de regresión lineal para describir cómo las concentraciones de PM2.5 ​ varían en función de su ubicación geográfica. El modelo contemplado es el siguiente:</p>
+<p>Se ajusto un modelo de regresión lineal para describir cómo las concentraciones de PM2.5 varían en función de su ubicación geográfica. El modelo contemplado es el siguiente:</p>
 <p><span class="math display">\[
 PM2.5 = \beta_0+\beta_1\cdot este + \beta_2\cdot norte+\beta_3\cdot \sin(este)+\beta_4\cdot\sin(norte)
 \]</span></p>
@@ -1200,7 +1191,7 @@ PM2.5 = \beta_0+\beta_1\cdot este + \beta_2\cdot norte+\beta_3\cdot \sin(este)+\
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-59-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-60-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -1209,27 +1200,7 @@ PM2.5 = \beta_0+\beta_1\cdot este + \beta_2\cdot norte+\beta_3\cdot \sin(este)+\
 </section>
 <section id="estimación-del-semivariograma-1" class="level2">
 <h2 class="anchored" data-anchor-id="estimación-del-semivariograma-1">Estimación del semivariograma</h2>
-<p>Para analizar la estructura de dependencia espacial y temporal de los residuales de PM2.5 ​, se procedió a calcular el variograma empírico espacio-temporal.</p>
-<div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-60-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-60-2.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>Este gráfico tridimensional ilustra la estructura de dependencia del PM2.5. La superficie ascendente muestra que la correlación entre mediciones se debilita a medida que aumenta la distancia o los días de separación.</p>
-<section id="ajuste-de-modelos-teóricos-al-semivariograma-empírico-2" class="level3">
-<h3 class="anchored" data-anchor-id="ajuste-de-modelos-teóricos-al-semivariograma-empírico-2">Ajuste de modelos teóricos al semivariograma empírico</h3>
-<p>A continuación se realizo el ajuste de modelos teóricos, se eligió un modelo inicial donde el componente espacial se usa un modelo “Hole” y el componente temporal un modelo Pentaesferico.</p>
+<p>Para analizar la estructura de dependencia espacial y temporal de los residuales de PM2.5, se procedió a calcular el variograma empírico espacio-temporal.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -1246,22 +1217,30 @@ PM2.5 = \beta_0+\beta_1\cdot este + \beta_2\cdot norte+\beta_3\cdot \sin(este)+\
 </div>
 </div>
 </div>
+<p>Este gráfico tridimensional ilustra la estructura de dependencia del PM2.5. La superficie ascendente muestra que la correlación entre mediciones se debilita a medida que aumenta la distancia o los días de separación.</p>
+<section id="ajuste-de-modelos-teóricos-al-semivariograma-empírico-2" class="level3">
+<h3 class="anchored" data-anchor-id="ajuste-de-modelos-teóricos-al-semivariograma-empírico-2">Ajuste de modelos teóricos al semivariograma empírico</h3>
+<p>A continuación se realizo el ajuste de modelos teóricos, se eligió un modelo inicial donde el componente espacial se usa un modelo “Hole” y el componente temporal un modelo Pentaesferico.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-62-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-62-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
 </section>
 </section>
 <section id="kriging-espacio-tiempo-de-pm2.5" class="level2">
 <h2 class="anchored" data-anchor-id="kriging-espacio-tiempo-de-pm2.5">Kriging espacio tiempo de PM2.5</h2>
-<div class="cell">
-<div class="cell-output cell-output-stdout">
-<pre><code>           used  (Mb) gc trigger  (Mb) max used  (Mb)
-Ncells  4402836 235.2    7298725 389.8  7298725 389.8
-Vcells 20101013 153.4   38133822 291.0 38133822 291.0</code></pre>
-</div>
-<div class="cell-output cell-output-stdout">
-<pre><code>           used  (Mb) gc trigger   (Mb)  max used   (Mb)
-Ncells  4408577 235.5    7298725  389.8   7298725  389.8
-Vcells 19321765 147.5  242478663 1850.0 303077611 2312.3</code></pre>
-</div>
-</div>
 <div class="tabset-margin-container"></div><div class="panel-tabset">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" role="tab" aria-controls="tabset-1-1" aria-selected="true" href="">2020-10-16</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" role="tab" aria-controls="tabset-1-2" aria-selected="false" href="">2020-10-26</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-3" role="tab" aria-controls="tabset-1-3" aria-selected="false" href="">2020-11-05</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-4-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-4" role="tab" aria-controls="tabset-1-4" aria-selected="false" href="">2020-11-15</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-5-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-5" role="tab" aria-controls="tabset-1-5" aria-selected="false" href="">2020-11-25</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-6-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-6" role="tab" aria-controls="tabset-1-6" aria-selected="false" href="">2020-12-05</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-7-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-7" role="tab" aria-controls="tabset-1-7" aria-selected="false" href="">2020-12-15</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-8-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-8" role="tab" aria-controls="tabset-1-8" aria-selected="false" href="">2020-12-25</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-9-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-9" role="tab" aria-controls="tabset-1-9" aria-selected="false" href="">2021-01-04</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-10-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-10" role="tab" aria-controls="tabset-1-10" aria-selected="false" href="">2021-01-14</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-11-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-11" role="tab" aria-controls="tabset-1-11" aria-selected="false" href="">2021-01-24</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-12-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-12" role="tab" aria-controls="tabset-1-12" aria-selected="false" href="">2021-02-03</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-13-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-13" role="tab" aria-controls="tabset-1-13" aria-selected="false" href="">2021-02-13</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-14-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-14" role="tab" aria-controls="tabset-1-14" aria-selected="false" href="">2021-02-23</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-15-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-15" role="tab" aria-controls="tabset-1-15" aria-selected="false" href="">2021-03-05</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-16-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-16" role="tab" aria-controls="tabset-1-16" aria-selected="false" href="">2021-03-15</a></li></ul>
 <div class="tab-content">
