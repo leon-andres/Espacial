@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.6.42">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jerson Vargas Galeano">
+<meta name="author" content="Andres David Leon Hernandez">
+<meta name="dcterms.date" content="2025-06-21">
+
+<title>Análisis espacial de datos funcionales del albedo del cielo y la radiación solar neta en Inglaterra y Escocia</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="Funcionales_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Funcionales_files/libs/quarto-html/quarto.js"></script>
+<script src="Funcionales_files/libs/quarto-html/popper.min.js"></script>
+<script src="Funcionales_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Funcionales_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Funcionales_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Funcionales_files/libs/quarto-html/quarto-syntax-highlighting-2f5df379a58b258e96c21c0638c20c03.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Funcionales_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Funcionales_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Funcionales_files/libs/bootstrap/bootstrap-1bc8a17f135ab3d594c857e9f48e611b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Análisis espacial de datos funcionales del albedo del cielo y la radiación solar neta en Inglaterra y Escocia</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Authors</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jerson Vargas Galeano </p>
+             <p>Andres David Leon Hernandez </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">June 21, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="planteamiento-del-problema" class="level2">
+<h2 class="anchored" data-anchor-id="planteamiento-del-problema">Planteamiento del problema</h2>
+<p>La modelación del comportamiento de variables ambientales que varían tanto en el espacio como en el tiempo es fundamental para entender los patrones subyacentes en fenómenos naturales complejos. En particular, el albedo del cielo, entendido como el promedio de la fracción de radiación reflejada por la atmósfera, tiene una relación directa con variables radiativas como la radiación solar neta, y ambas influyen significativamente en el balance energético de la superficie terrestre. Estas variables no solo se comportan de manera dinámica a lo largo del día, sino que también presentan dependencia espacial en diferentes regiones geográficas.</p>
+<p>En este trabajo se aborda el análisis conjunto del albedo del cielo y la radiación solar neta registrados durante el año 2015 en diversas estaciones meteorológicas del Reino Unido, particularmente en Inglaterra y Escocia, como parte del Environmental Change Network (ECN). Debido a su naturaleza funcional (es decir, observaciones continuas a lo largo del tiempo para cada sitio), se propone utilizar técnicas de análisis de datos funcionales para representar adecuadamente la evolución diaria de cada variable en cada estación.</p>
+<p>Además, se busca aplicar métodos de cokriging funcional para modelar la estructura de dependencia espacial residual del albedo del cielo, apoyándose en la información contenida en la radiación neta. En lugar de predecir directamente los valores funcionales de las variables, el interés se centra en estimar los residuos funcionales (es decir, las desviaciones respecto al comportamiento global), lo cual permite identificar zonas con comportamientos atípicos o diferenciales frente al patrón promedio.</p>
+<p>Este enfoque permitirá comprender mejor la variabilidad local del albedo atmosférico y su relación con la radiación, proporcionando herramientas útiles para estudios climatológicos, energéticos o de modelación ecológica en regiones específicas del Reino Unido.</p>
+</section>
+<section id="objetivos" class="level2">
+<h2 class="anchored" data-anchor-id="objetivos"><strong>Objetivos</strong></h2>
+<section id="objetivo-general" class="level3">
+<h3 class="anchored" data-anchor-id="objetivo-general"><strong>Objetivo general</strong></h3>
+<ul>
+<li>Aplicar técnicas de análisis de datos funcionales y cokriging funcional para modelar la variabilidad residual espacial del albedo del cielo en estaciones meteorológicas del Reino Unido durante el año 2015, utilizando como variable auxiliar la radiación solar neta.</li>
+</ul>
+</section>
+<section id="objetivos-específicos" class="level3">
+<h3 class="anchored" data-anchor-id="objetivos-específicos"><strong>Objetivos específicos</strong></h3>
+<ul>
+<li><p>Representar la evolución diaria del albedo del cielo y de la radiación solar neta mediante técnicas de suavizamiento funcional por sitio de monitoreo.</p></li>
+<li><p>Estimar la tendencia funcional general del albedo del cielo y calcular los residuos funcionales respecto a dicha tendencia.</p></li>
+<li><p>Analizar la estructura de dependencia espacial de los residuos funcionales mediante semivariogramas cruzados y modelos de coregionalización.</p></li>
+<li><p>Ajustar un modelo de cokriging funcional para predecir los residuos del albedo del cielo en ubicaciones no observadas.</p></li>
+<li><p>Evaluar la calidad de las predicciones obtenidas y explorar la interpretación de los resultados en el contexto geográfico y climático de Inglaterra y Escocia.</p></li>
+</ul>
+</section>
+</section>
+<section id="variables" class="level2">
+<h2 class="anchored" data-anchor-id="variables"><strong>Variables</strong></h2>
+<p>Este análisis se basa en datos meteorológicos registrados por el Environmental Change Network (ECN) del Reino Unido, correspondientes al mes de marzo del año 2015. Las observaciones se tomaron diariamente a las 12:00 del mediodía, en un total de nueve estaciones de monitoreo distribuidas en Inglaterra y Escocia. A continuación, se describen las variables utilizadas:</p>
+<ul>
+<li><p><strong>Albedo del cielo (promedio, W/m²)</strong>: Es la variable de interés principal. Representa el promedio horario de la fracción de radiación solar reflejada por la atmósfera hacia el suelo. Aunque aparece expresada en unidades de W/m², operativamente se interpreta como un indicador de reflectancia atmosférica, estrechamente relacionada con la cobertura nubosa o condiciones del cielo. Se trata como una variable funcional, es decir, una función continua del tiempo durante el mes.</p></li>
+<li><p><strong>Radiación solar neta (promedio, W/m²)</strong>: Variable auxiliar para el análisis conjunto mediante cokriging funcional. Refleja el balance de radiación (entrante menos saliente) y representa la energía neta absorbida en superficie. También es una variable funcional, registrada como promedio horario a las 12:00 p.m. cada día.</p></li>
+</ul>
+<p>Además, se consideraron variables adicionales esenciales para el análisis geoestadístico:</p>
+<ul>
+<li><p><strong>Fecha</strong>: Día específico de medición. Para este estudio se usaron los datos del mes de marzo de 2015, con registros diarios a mediodía.</p></li>
+<li><p><strong>Estación de monitoreo</strong>: Identificador del sitio geográfico de medición. Se incluyeron nueve estaciones, ubicadas tanto en Inglaterra como en Escocia.</p></li>
+<li><p><strong>Coordenada Este</strong> y <strong>Coordenada Norte</strong>: Posiciones geográficas de cada estación, expresadas en metros de acuerdo con el sistema de referencia espacial británico (British National Grid). Estas coordenadas permiten representar la estructura espacial de los datos y calcular distancias entre estaciones.</p></li>
+</ul>
+<p>Estas variables permiten la construcción de curvas funcionales por estación, el análisis exploratorio inicial y la implementación del modelo geoestadístico funcional bivariado para estimar la variabilidad espacial del albedo del cielo.</p>
+</section>
+<section id="análisis-del-albedo-del-cielo-como-datos-funcionales" class="level1">
+<h1>ANÁLISIS DEL ALBEDO DEL CIELO COMO DATOS FUNCIONALES</h1>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Para este estudio, el albedo del cielo se consideró como una variable que evoluciona a lo largo del tiempo, específicamente durante el mes de marzo de 2015. Aunque las mediciones originales son valores discretos —un dato por día a las 12:00 del mediodía en cada estación—, el objetivo de este análisis es modelarlas como funciones continuas, es decir, tratarlas como datos funcionales. Esta aproximación permite capturar mejor la variabilidad diaria y aplicar técnicas estadísticas diseñadas para curvas, como el cokriging funcional.</p>
+<p>Dado que los datos iniciales no están en formato funcional, fue necesario realizar un proceso de suavizado para transformarlos en funciones. Para ello, se utilizó una base de funciones B-spline de orden adecuado, definida sobre el rango temporal de interés (los días del mes). En este caso, se eligió una base con 8 funciones base, una cantidad que permite representar adecuadamente las principales características de las curvas sin sobreajustar a pequeñas fluctuaciones espurias.</p>
+<p>Posteriormente, para cada estación se realizó un ajuste individual utilizando el método de suavizado por mínimos cuadrados penalizados, a través del cual se generaron las representaciones funcionales tanto para la radiación solar neta como para el albedo del cielo. Este proceso permitió obtener una curva continua por estación para cada variable.</p>
+<p>Finalmente, las funciones estimadas para todas las estaciones fueron integradas en objetos funcionales multivariados, lo cual facilita su análisis conjunto en etapas posteriores. Con esto, las variables quedan representadas como funciones en el dominio temporal, lo que habilita su uso en el análisis funcional geoestadístico que se desarrollará en las siguientes secciones.</p>
+<section id="análisis-descriptivo-y-exploratorio" class="level2">
+<h2 class="anchored" data-anchor-id="análisis-descriptivo-y-exploratorio">ANÁLISIS DESCRIPTIVO Y EXPLORATORIO</h2>
+<p>Como primer paso del análisis descriptivo, se graficaron las curvas suavizadas para cada estación de monitoreo correspondientes a las variables albedo del cielo y radiación solar neta, tratadas como funciones continuas a lo largo de los 31 días del mes de marzo de 2015. El eje X representa el tiempo en días, y el eje Y muestra los valores de cada variable en sus respectivas unidades (W/m²).</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Ambas variables muestran un comportamiento gráfico muy similar. Durante la primera mitad del mes, las curvas se comportan de manera altamente variable, sin una forma definida ni una tendencia común clara entre estaciones: algunas presentan valores altos, otras bajos, lo que refleja condiciones locales diversas como nubosidad, cobertura atmosférica o variabilidad en la radiación. Sin embargo, a partir del día 20 aproximadamente, en ambas variables se observa un patrón compartido: las curvas comienzan a alinearse, formando una especie de “montañita” entre los días 20 y 25, seguida de un descenso pronunciado alrededor del día 28, y un repunte final entre los días 30 y 31. Esta coincidencia sugiere la presencia de fenómenos meteorológicos regionales que afectaron simultáneamente a todas las estaciones, como una ventana de cielo despejado seguida de nubosidad y luego mayor insolación hacia el final del mes.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>En la Figura se presentan las curvas correspondientes a la evolución diaria de una variable continua (no especificada) durante un mes, para diferentes regiones o estaciones (T02, T04, T05, …, T12). El eje horizontal representa los días del mes (de 1 a 31), mientras que el eje vertical muestra los valores de la variable medida.</p>
+<p>En general, se observa una fuerte variabilidad temporal dentro del mes, con patrones no lineales evidentes en casi todas las estaciones. Algunas curvas presentan un comportamiento suave y unimodal, como es el caso de T06, donde se aprecia un descenso inicial seguido de una recuperación hacia el final del mes. Otras estaciones muestran patrones bimodales más marcados, como T04, T05, T09 y T12, con dos picos de mayor valor separados por un valle a mitad del mes. En varios casos, los valores aumentan notoriamente hacia el final del periodo (por ejemplo, T08 y T07), lo que sugiere una posible tendencia creciente al cierre del mes.</p>
+<p>Es destacable que no todas las estaciones siguen un mismo patrón, lo cual sugiere heterogeneidad espacial en el comportamiento de la variable. Esta variabilidad podría estar asociada a factores locales (climáticos, geográficos o de cobertura).</p>
+<section id="análisis-de-la-curva-media-funcional-y-variabilidad" class="level3">
+<h3 class="anchored" data-anchor-id="análisis-de-la-curva-media-funcional-y-variabilidad">Análisis de la curva media funcional y variabilidad</h3>
+<p>Posteriormente, se graficaron las curvas funcionales suavizadas de todas las estaciones junto con la curva media funcional para cada variable. En ambas variables —albedo del cielo y radiación neta— se observa que la curva media logra capturar apropiadamente el comportamiento general de las estaciones, especialmente en la segunda mitad del mes, donde las trayectorias tienden a alinearse más claramente con la media. No obstante, en los primeros días del mes, las curvas individuales presentan una alta dispersión alrededor de la media, lo que refleja una mayor heterogeneidad en las condiciones atmosféricas registradas en las distintas estaciones.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-7-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Este patrón también se refleja en los gráficos de desviación estándar funcional. Para el albedo del cielo, se observa una alta variabilidad en los primeros días, con valores de desviación estándar cercanos a 120 W/m², lo que indica diferencias significativas entre estaciones. Conforme avanza el mes, la desviación estándar disminuye de manera progresiva, alcanzando su punto más bajo alrededor del día 27, con un valor cercano a 45 W/m². No obstante, en los últimos días del mes, la desviación vuelve a incrementarse drásticamente, lo que sugiere nuevamente una mayor inestabilidad atmosférica o condiciones divergentes entre los sitios monitoreados.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-8-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>En el caso de la radiación neta, el comportamiento es muy similar. La variabilidad inicial es alta, comenzando con una desviación estándar cercana a 80 W/m², que disminuye hasta aproximadamente 30 W/m² hacia los días 13 o 14. Luego, la desviación estándar experimenta un leve incremento hacia los días 20 a 25, llegando a valores de aproximadamente 40 W/m², seguido por una nueva caída hacia los días 26 y 27. Sin embargo, al igual que con el albedo del cielo, los últimos días del mes muestran un fuerte aumento en la variabilidad, alcanzando una desviación estándar cercana a 100 W/m². Esta dinámica confirma que las condiciones de radiación en las estaciones fueron más estables a mitad de mes, mientras que los extremos del mes (inicio y fin) concentran los mayores niveles de incertidumbre o dispersión en ambas variables.</p>
+</section>
+<section id="centrado-de-curvas-funcionales" class="level3">
+<h3 class="anchored" data-anchor-id="centrado-de-curvas-funcionales">Centrado de curvas funcionales</h3>
+<p>Con el fin de extraer la tendencia general y analizar adecuadamente los residuos funcionales, se centraron las curvas de ambas variables restando la media funcional a cada una de ellas.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Al graficar las nuevas curvas centradas, se observa que, aunque conservan una alta variabilidad y dispersión entre estaciones, ahora oscilan alrededor de cero, tal como se espera tras este procedimiento. En el caso del albedo del cielo, los valores centrados fluctúan entre aproximadamente -200 y 200 W/m², mientras que para la radiación neta se ubican entre -150 y 150 W/m², manteniendo formas irregulares que reflejan la complejidad de su comportamiento diario.</p>
+</section>
+<section id="correlación-funcional-cruzada" class="level3">
+<h3 class="anchored" data-anchor-id="correlación-funcional-cruzada">Correlación funcional cruzada</h3>
+<p>Para evaluar la relación temporal entre las curvas del albedo del cielo y la radiación neta, se construyó un gráfico de imagen tipo mapa de calor que representa la correlación funcional cruzada entre ambas variables evaluadas sobre una grilla común de tiempo. En este gráfico, los ejes representan los días del mes de marzo para cada variable, y los colores indican el nivel de correlación entre los valores correspondientes de albedo y radiación.</p>
+<p>Se observa una fuerte correlación positiva en la diagonal principal del gráfico, con valores entre 0.8 y 1, lo que indica que ambas variables están altamente relacionadas cuando se comparan en los mismos días. Este patrón sugiere una conexión directa entre la radiación neta recibida y la respuesta del albedo del cielo en esos momentos. Fuera de la diagonal, la correlación disminuye, presentando valores que oscilan entre 0.4 y 0.6, lo cual es esperable, dado que representa la relación entre días no coincidentes en el tiempo.</p>
+<p>Este resultado respalda el uso conjunto de ambas variables en un análisis de cokriging funcional, ya que evidencia una dependencia temporal significativa entre ellas.</p>
+</section>
+</section>
+</section>
+<section id="cálculo-de-semivariográmas-funcionales-empíricos" class="level1">
+<h1>CÁLCULO DE SEMIVARIOGRÁMAS FUNCIONALES EMPÍRICOS</h1>
+<section id="semivariogramas-funcionales-individuales" class="level2">
+<h2 class="anchored" data-anchor-id="semivariogramas-funcionales-individuales">Semivariogramas funcionales individuales</h2>
+<p>Para caracterizar la dependencia espacial de las variables funcionales consideradas —el albedo del cielo y la radiación neta—, se calcularon sus respectivos semivariogramas funcionales empíricos.</p>
+<p>A diferencia del semivariograma tradicional, que se basa en la diferencia puntual entre observaciones escalares, el semivariograma funcional empírico se construye a partir de la distancia entre funciones observadas completas. En este caso, se utiliza la norma <span class="math inline">\(L^2\)</span> como medida de disimilitud entre curvas suavizadas.</p>
+<p>Para dos ubicaciones espaciales <span class="math inline">\(s_i\)</span> y <span class="math inline">\(s_j\)</span>, con funciones observadas <span class="math inline">\(X_i(t)\)</span> y <span class="math inline">\(X_j(t)\)</span>, el semivariograma funcional empírico para un rezago <span class="math inline">\(h\)</span> se define como:</p>
+<p><span class="math display">\[ \hat{\gamma}(h) = \frac{1}{2|N(h)|} \sum_{(i,j) \in N(h)} \left\| X_i(t) - X_j(t) \right\|_{L^2}^2 \]</span></p>
+<p>donde:</p>
+<ul>
+<li><span class="math inline">\(N(h)\)</span> es el conjunto de pares de ubicaciones cuya distancia está dentro del intervalo correspondiente al rezago <span class="math inline">\(h\)</span>,</li>
+<li><span class="math inline">\(\| \cdot \|_{L^2}\)</span> es la norma <span class="math inline">\(L^2\)</span>, definida como: <span class="math display">\[
+\left\| X_i(t) - X_j(t) \right\|_{L^2} = \left( \int_{T} \left[ X_i(t) - X_j(t) \right]^2 dt \right)^{1/2}
+\]</span></li>
+</ul>
+<p>Se calcularon los semivariogramas funcionales empíricos para las variables albedo del cielo y radiación neta, con el fin de explorar su estructura de dependencia espacial. En ambos casos, no se presentan valores observados para los rezagos más pequeños debido a la escasa cantidad de pares de estaciones cercanas, lo cual es esperable considerando la limitada densidad espacial de estaciones.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Para el albedo del cielo, el semivariograma comienza a ser observable a partir de distancias cercanas a los 100.000 metros, donde la semivarianza alcanza un valor aproximado de 500. Posteriormente, entre los 200.000 y 350.000 metros, se observa un ligero aumento y luego una estabilización en los valores, lo cual indica que a partir de los 200.000 metros la dependencia espacial comienza a debilitarse, y se alcanza una especie de meseta, lo que sugiere la presencia de una correlación espacial de mediano alcance.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>En el caso de la radiación neta, el comportamiento es similar: se observa un aumento de la semivarianza con la distancia, alcanzando aproximadamente 300 en los primeros rezagos visibles (alrededor de los 100.000 metros). A partir de ahí, la semivarianza sigue una oscilación suave y también tiende a estabilizarse hacia los 200.000 metros, lo que sugiere un patrón espacial comparable al del albedo del cielo.</p>
+<p>Este comportamiento indica que, en ambos casos, las estaciones relativamente cercanas tienden a tener valores similares de las variables, mientras que a mayores distancias, la dependencia espacial se reduce. Esto es coherente con fenómenos meteorológicos y atmosféricos que actúan a escalas regionales, y respalda el uso de modelos de geoestadística funcional para capturar dicha estructura.</p>
+</section>
+<section id="semivariograma-funcional-cruzado" class="level2">
+<h2 class="anchored" data-anchor-id="semivariograma-funcional-cruzado">Semivariograma funcional cruzado</h2>
+<p>Además de analizar las estructuras espaciales de dependencia de las variables por separado, es de particular interés estudiar la relación espacial conjunta entre el albedo del cielo y la radiación neta. Para ello, se calculó el semivariograma cruzado funcional empírico, el cual permite medir la disimilitud funcional entre dos variables diferentes observadas en distintas ubicaciones, en función de la distancia espacial.</p>
+<p>Este semivariograma se define, para un rezago <span class="math inline">\(h\)</span>, como:</p>
+<p><span class="math display">\[
+\hat{\gamma}_{12}(h) = \frac{1}{2|N(h)|} \sum_{(i,j) \in N(h)} \left\langle X_i^{(1)}(t) - X_j^{(1)}(t),\ X_i^{(2)}(t) - X_j^{(2)}(t) \right\rangle_{L^2}
+\]</span></p>
+<p>donde:</p>
+<ul>
+<li><span class="math inline">\(X^{(1)}_i(t)\)</span> y <span class="math inline">\(X^{(2)}_i(t)\)</span> representan las funciones observadas en la ubicación <span class="math inline">\(i\)</span> para la radiación neta y el albedo del cielo, respectivamente.</li>
+<li><span class="math inline">\(\left\langle f, g \right\rangle_{L^2}\)</span> denota el producto interno funcional: <span class="math display">\[
+\left\langle f,\ g \right\rangle_{L^2} = \int_T f(t)\ g(t)\ dt
+\]</span></li>
+<li><span class="math inline">\(N(h)\)</span> es el conjunto de pares de ubicaciones cuya distancia está dentro del intervalo asociado al rezago <span class="math inline">\(h\)</span>.</li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>El gráfico resultante del semivariograma cruzado funcional muestra que, en los primeros rezagos (menores a aproximadamente 50.000 metros), no se presentan observaciones debido a la escasez de pares espaciales a distancias tan cortas. Sin embargo, tal como se espera, la semivarianza cruzada tiende a ser baja en estas distancias por la alta similitud entre funciones cercanas.</p>
+<p>A medida que la distancia aumenta, la semivarianza cruzada incrementa también, alcanzando un comportamiento que tiende a estabilizarse alrededor de los 200.000 metros. En esta zona, las diferencias conjuntas entre ambas variables funcionales tienden a permanecer constantes, lo cual sugiere una correlación estructural moderadamente estable a esa escala espacial. A partir de los 350.000 metros, la semivarianza cruzada incluso muestra una leve disminución, lo que podría indicar cierta reversión de patrones conjuntos o limitaciones de pares a esas distancias extremas.</p>
+<p>En general, este comportamiento refleja una relación funcional coherente entre las dos variables: estaciones más cercanas tienden a compartir patrones similares tanto en albedo del cielo como en radiación neta, y esta relación pierde fuerza a medida que se incrementa la distancia espacial.</p>
+</section>
+</section>
+<section id="ajuste-de-modelos-teóricos-para-los-semivariogramas-funcionales" class="level1">
+<h1>AJUSTE DE MODELOS TEÓRICOS PARA LOS SEMIVARIOGRAMAS FUNCIONALES</h1>
+<p>Una vez obtenidos los semivariogramas funcionales empíricos —tanto individuales para cada variable como el cruzado—, se procedió al ajuste de diferentes modelos teóricos con el fin de representar adecuadamente la estructura de dependencia espacial de los datos funcionales. Para cada uno de los semivariogramas, se probaron cuatro tipos de modelos: exponencial, gaussiano, wave (ondulatorio) y esférico.</p>
+<p>El criterio utilizado para seleccionar el mejor modelo fue el Error Cuadrático Medio de la Raíz (RMSE) entre los valores empíricos del semivariograma y los valores ajustados por cada modelo. Este enfoque permitió identificar cuál de las funciones teóricas lograba un mejor ajuste al comportamiento observado de los datos.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-18-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<ul>
+<li><p>Para el semivariograma funcional del albedo del cielo, el modelo exponencial presentó el menor RMSE, por lo que fue seleccionado como el más adecuado para describir su estructura espacial.</p></li>
+<li><p>De forma análoga, para el semivariograma funcional de la radiación neta, también el modelo exponencial ofreció el mejor desempeño en términos del error de ajuste.</p></li>
+<li><p>En el caso del semivariograma cruzado funcional entre la radiación neta y el albedo del cielo, el modelo que mejor capturó la covariación espacial entre ambas variables fue el wave, reflejando posiblemente una interacción más compleja u oscilatoria entre estas magnitudes en el espacio.</p></li>
+</ul>
+<p>En todos los casos, los modelos seleccionados lograron ajustarse visualmente de forma adecuada a los puntos observados en los semivariogramas empíricos, representando con fidelidad las tendencias espaciales presentes en los datos funcionales.</p>
+</section>
+<section id="cokriging-funcional-para-la-predicción-del-albedo-del-cielo" class="level1">
+<h1>COKRIGING FUNCIONAL PARA LA PREDICCIÓN DEL ALBEDO DEL CIELO</h1>
+<p>Luego del ajuste de los modelos variográficos individuales y cruzado, se procedió a implementar el método de cokriging funcional con el objetivo de predecir el comportamiento funcional del albedo del cielo, apoyándose en la información adicional provista por la radiación neta.</p>
+<p>Para ello, se utilizó una función propia que implementa el cokriging funcional en una ubicación específica <span class="math inline">\(h_0\)</span>, basándose en las distancias espaciales entre las estaciones y los modelos de covarianza teóricos previamente ajustados (exponencial para ambas variables individuales, y wave para el modelo cruzado).</p>
+<p>El procedimiento seguido consistió en:</p>
+<ol type="1">
+<li><p>Evaluar las curvas funcionales suavizadas y centradas para ambas variables en una grilla temporal común (los 31 días del mes de marzo).</p></li>
+<li><p>Calcular las matrices de covarianza entre las estaciones, de acuerdo con los modelos variográficos ajustados para cada variable y para el componente cruzado.</p></li>
+<li><p>Construir la matriz de covarianza conjunta que incluye las relaciones entre las dos variables.</p></li>
+<li><p>Calcular la covarianza entre la nueva ubicación <span class="math inline">\(h_0\)</span> y las estaciones disponibles, para ambas variables.</p></li>
+<li><p>Resolver el sistema lineal que permite obtener los pesos óptimos del cokriging.</p></li>
+<li><p>Obtener la predicción funcional del albedo del cielo como una combinación ponderada de las curvas funcionales observadas de ambas variables.</p></li>
+</ol>
+<p>Los parámetros utilizados fueron:</p>
+<ul>
+<li><p>Para el albedo del cielo: silla = 680.6, rango = 74,831.4</p></li>
+<li><p>Para la radiación neta: silla = 379.1, rango = 64,092.3</p></li>
+<li><p>Para el componente cruzado: sill = 113,525, rango = 62,768</p></li>
+</ul>
+<p>Este procedimiento permite incorporar no solo la información espacial y funcional del albedo del cielo, sino también la estructura conjunta de dependencia con la radiación neta, mejorando así la precisión de las predicciones.</p>
+<section id="análisis-espacio-temporal-de-los-residuos-mediante-cokriging-funcional" class="level2">
+<h2 class="anchored" data-anchor-id="análisis-espacio-temporal-de-los-residuos-mediante-cokriging-funcional">Análisis Espacio-Temporal de los Residuos mediante coKriging Funcional</h2>
+<p>El objetivo principal de este análisis no es predecir el albedo del cielo en ubicaciones específicas, sino comprender su variabilidad funcional respecto a la media global. Para ello, se empleó el cokriging funcional utilizando la radiación solar neta como variable auxiliar, y se realizaron predicciones espaciales sobre los residuos funcionales del albedo.</p>
+<p>Se construyeron mapas predichos para los días 5, 10, 15, 20, 25 y 30 del mes, sobre el área continental de Inglaterra y Escocia. En estos mapas, cada punto representa la magnitud del residuo funcional, es decir, cuánto se desvía el albedo en esa ubicación con respecto al comportamiento promedio global (la media funcional). Los colores oscuros (negros, morados, azules) indican residuos negativos —zonas con albedo inferior al promedio—, mientras que los colores claros (rojo, rosado, blanco) indican residuos positivos —zonas con albedo superior al promedio.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-21-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-21-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-21-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-21-4.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-21-5.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-21-6.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>En cuanto a la evolución espacio-temporal:</p>
+<ul>
+<li><p><strong>Día 5</strong>: Se observa alta variabilidad regional. La zona sur presenta contrastes fuertes, con comportamientos distintos incluso entre estaciones cercanas.</p></li>
+<li><p><strong>Día 10</strong>: Se evidencia una transición: la región suroriental, que tenía residuos bajos, ahora presenta valores positivos elevados. La región central desciende a valores negativos.</p></li>
+<li><p><strong>Día 15</strong>: El centro muestra una ligera recuperación hacia la media. El noroccidente comienza a destacar con residuos más positivos.</p></li>
+<li><p><strong>Día 20</strong>: Se invierten comportamientos en el suroriental, y el centro se estabiliza alrededor de la media. El nororiente se modera.</p></li>
+<li><p><strong>Día 25</strong>: Persisten valores negativos en el centro y noroccidente, mientras el sur mantiene una mezcla de zonas con residuos tanto positivos como negativos.</p></li>
+<li><p><strong>Día 30</strong>: El patrón se consolida: el noroccidente presenta residuos negativos más marcados, el centro vuelve a estabilizarse, y el suroriental continúa mostrando alta heterogeneidad.</p></li>
+</ul>
+<p>Este comportamiento evidencia la riqueza y complejidad del fenómeno analizado, confirmando la utilidad del cokriging funcional como herramienta para estudiar patrones espacio-temporales de variabilidad más allá de las medias marginales.</p>
+</section>
+<section id="comportamiento-temporal-de-los-residuos-funcionales-en-puntos-específicos" class="level2">
+<h2 class="anchored" data-anchor-id="comportamiento-temporal-de-los-residuos-funcionales-en-puntos-específicos">Comportamiento Temporal de los Residuos Funcionales en Puntos Específicos</h2>
+<p>Para complementar el análisis espacial, se seleccionaron cinco ubicaciones distribuidas en distintas zonas del área continental del Reino Unido, con el fin de examinar el comportamiento temporal de los residuos funcionales del albedo del cielo predichos mediante cokriging funcional.</p>
+<p>Recordando que los residuos representan la diferencia entre el albedo local y la media global funcional, valores positivos indican mayor albedo del esperado, y valores negativos indican menor albedo del esperado.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-22-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-22-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-22-4.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Funcionales_files/figure-html/unnamed-chunk-22-5.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Los resultados fueron los siguientes:</p>
+<ul>
+<li><p><strong>Punto 1 (zona sur):</strong> La predicción inicia con un valor muy bajo (alrededor de -6), pero sube rápidamente hasta alcanzar un pico de 2.6 hacia el día 5. Posteriormente, se observa una oscilación descendente que termina estabilizándose hacia el día 30. Este comportamiento sugiere una zona con una variación muy marcada del albedo en los primeros días, que luego tiende a estabilizarse.</p></li>
+<li><p><strong>Punto 2 (zona continental central):</strong> El residuo comienza alto (~1.3), pero cae rápidamente a -0.5 en el día 5. Luego, se presentan fluctuaciones periódicas, alternando entre valles y picos, aunque con amplitud decreciente hacia el final del mes (cerrando en -1.2). Este patrón revela comportamientos funcionales fuertemente oscilatorios pero con tendencia decreciente.</p></li>
+<li><p><strong>Punto 3 (zona nororiental):</strong> Inicia cercano a 0, desciende hasta -1 hacia el día 12, y luego experimenta un ascenso continuo, alcanzando valores positivos cercanos a 2 hacia el día 30. Esto refleja una tendencia creciente sostenida del albedo en esta región.</p></li>
+<li><p><strong>Punto 4 (centro-sur):</strong> Comienza con un valor moderadamente positivo (0.3), desciende gradualmente hasta -0.2 en el día 12, y posteriormente sube hasta 0.3 en el día 20. Hacia el final del mes, la predicción tiende nuevamente a 0. Este comportamiento representa un ciclo de bajada y subida que concluye en estabilización.</p></li>
+<li><p><strong>Punto 5 (centro urbano):</strong> Presenta una predicción inicial extremadamente baja (-2), seguida por un aumento abrupto hacia la media (~0) en los primeros días. Posteriormente, muestra un patrón oscilatorio alrededor de la media, con fluctuaciones entre valores positivos y negativos sin una tendencia clara.</p></li>
+</ul>
+<p>En conjunto, estos cinco casos ilustran la diversidad de comportamientos funcionales del albedo del cielo a lo largo del mes, confirmando que existe una fuerte heterogeneidad temporal en diferentes zonas, incluso en áreas cercanas. Este análisis permite identificar zonas de comportamiento extremo, patrones de oscilación y tendencias crecientes o decrecientes, lo que enriquece la comprensión del fenómeno más allá de lo que permitiría un análisis promedio o estático.</p>
+</section>
+<section id="validación-cruzada-funcional-con-métricas-por-estación-y-por-día" class="level2">
+<h2 class="anchored" data-anchor-id="validación-cruzada-funcional-con-métricas-por-estación-y-por-día">Validación cruzada funcional con métricas por estación y por día</h2>
+<p>Al evaluar la calidad predictiva del modelo de cokriging funcional, se obtuvo un error cuadrático medio (RMSE) de 85.53 y un error absoluto medio (MAE) de 68.44. Estos valores fueron contrastados con la desviación estándar de los valores reales (85.76), encontrándose que el error de predicción se aproxima bastante a la variabilidad natural de los datos.</p>
+<p>Este resultado sugiere que, si bien el modelo logra capturar parte del comportamiento funcional del albedo del cielo, no ofrece una mejora sustancial en comparación con una predicción basada exclusivamente en la media global.</p>
+<p>Sin embargo, este comportamiento puede explicarse en buena medida por la configuración del problema: se cuenta con únicamente nueve estaciones de monitoreo distribuidas en una extensión geográfica considerable, lo que limita la capacidad del modelo para captar estructuras espaciales finas. La escasa densidad espacial y la posible heterogeneidad en las condiciones locales (climáticas o de cobertura) hacen que las predicciones estén condicionadas por la distancia a las estaciones más cercanas y su comportamiento promedio.</p>
+<p>No obstante, el modelo es capaz de reconstruir adecuadamente la estructura general del fenómeno y proporciona un marco flexible para incorporar información auxiliar (como la radiación neta). En futuras aplicaciones, la inclusión de más estaciones o de covariables adicionales podría potenciar notablemente el desempeño predictivo del enfoque.</p>
+</section>
+</section>
+<section id="conclusión-general" class="level1">
+<h1>CONCLUSIÓN GENERAL</h1>
+<p>El análisis funcional realizado sobre el albedo del cielo en el Reino Unido, auxiliado por la radiación solar neta mediante técnicas de cokriging funcional, permitió entender no solo el comportamiento temporal de esta variable atmosférica, sino también su variabilidad espacial con respecto a una media global. A través del centrado funcional y la modelación variográfica, se logró caracterizar la dependencia espacio-temporal de las curvas, y con ello, proyectar predicciones a lo largo del territorio.</p>
+<p>Los mapas obtenidos cada cinco días revelaron una fuerte variabilidad en el comportamiento del albedo, evidenciando que algunas zonas tienen sistemáticamente valores superiores o inferiores al promedio. Estas diferencias no son aleatorias: reflejan dinámicas locales del clima, de la cobertura de nubes, de los suelos o incluso de patrones de radiación —y por tanto, tienen consecuencias reales en la vida cotidiana, como la percepción de luminosidad o el balance energético superficial.</p>
+<p>Aunque los indicadores de calidad como el RMSE y el MAE no mostraron una mejora notable respecto a la desviación estándar de los datos, esto se entiende dentro del contexto del estudio: solo se contaba con nueve estaciones de monitoreo distribuidas en un territorio amplio, lo que limita la capacidad de interpolación espacial del modelo. Aun así, el modelo reproduce con coherencia las tendencias principales y abre la puerta a futuras aplicaciones más finas, donde haya mayor densidad de datos o más variables auxiliares.</p>
+<p>En suma, este trabajo demuestra que la estadística funcional no es solo un marco elegante para tratar datos complejos —es una herramienta poderosa para leer la realidad de forma más continua, profunda y precisa. Ver las curvas no como puntos aislados, sino como trayectorias, nos permite entender que los fenómenos ambientales no son fijos ni discretos: se mueven, fluctúan y dialogan entre regiones y días, tal como lo hace el propio clima que nos rodea</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

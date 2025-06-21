@@ -1,0 +1,1131 @@
+---
+title: "Análisis espacial de datos funcionales del albedo del cielo y la radiación solar neta en Inglaterra y Escocia"
+date: 06-21-2025
+author: 
+  - "Jerson Vargas Galeano"
+  - "Andres David Leon Hernandez"
+format: html
+editor: visual
+---
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: false
+
+
+lista_librerías <- c(
+  "readr", "sqldf", "tidyr", "tidyverse", "ggplot2", "patchwork", "sp", 
+  "fields", "geoR", "akima", "shiny", "gstat", "sf", "dplyr", "knitr", 
+  "raster", "scales", "reshape2", "broom", 
+  "SpatFD", "fda.usc", "fda", "readxl", "pracma", "geofd"
+)
+ 
+
+
+no_installs <- lista_librerías[!lista_librerías %in% installed.packages()]
+
+if(length(no_installs) > 0) {
+  cat("Los siguientes paquetes no están instalados :\n")
+  cat(no_installs, sep = "\n")
+  install.packages(no_installs)
+} else {
+  cat("Todos los paquetes están instalados. \n")
+}
+
+sapply(lista_librerías, require, character = TRUE)
+```
+
+## Planteamiento del problema
+
+La modelación del comportamiento de variables ambientales que varían tanto en el espacio como en el tiempo es fundamental para entender los patrones subyacentes en fenómenos naturales complejos. En particular, el albedo del cielo, entendido como el promedio de la fracción de radiación reflejada por la atmósfera, tiene una relación directa con variables radiativas como la radiación solar neta, y ambas influyen significativamente en el balance energético de la superficie terrestre. Estas variables no solo se comportan de manera dinámica a lo largo del día, sino que también presentan dependencia espacial en diferentes regiones geográficas.
+
+En este trabajo se aborda el análisis conjunto del albedo del cielo y la radiación solar neta registrados durante el año 2015 en diversas estaciones meteorológicas del Reino Unido, particularmente en Inglaterra y Escocia, como parte del Environmental Change Network (ECN). Debido a su naturaleza funcional (es decir, observaciones continuas a lo largo del tiempo para cada sitio), se propone utilizar técnicas de análisis de datos funcionales para representar adecuadamente la evolución diaria de cada variable en cada estación.
+
+Además, se busca aplicar métodos de cokriging funcional para modelar la estructura de dependencia espacial residual del albedo del cielo, apoyándose en la información contenida en la radiación neta. En lugar de predecir directamente los valores funcionales de las variables, el interés se centra en estimar los residuos funcionales (es decir, las desviaciones respecto al comportamiento global), lo cual permite identificar zonas con comportamientos atípicos o diferenciales frente al patrón promedio.
+
+Este enfoque permitirá comprender mejor la variabilidad local del albedo atmosférico y su relación con la radiación, proporcionando herramientas útiles para estudios climatológicos, energéticos o de modelación ecológica en regiones específicas del Reino Unido.
+
+## **Objetivos**
+
+### **Objetivo general**
+
+-   Aplicar técnicas de análisis de datos funcionales y cokriging funcional para modelar la variabilidad residual espacial del albedo del cielo en estaciones meteorológicas del Reino Unido durante el año 2015, utilizando como variable auxiliar la radiación solar neta.
+
+### **Objetivos específicos**
+
+-   Representar la evolución diaria del albedo del cielo y de la radiación solar neta mediante técnicas de suavizamiento funcional por sitio de monitoreo.
+
+-   Estimar la tendencia funcional general del albedo del cielo y calcular los residuos funcionales respecto a dicha tendencia.
+
+-   Analizar la estructura de dependencia espacial de los residuos funcionales mediante semivariogramas cruzados y modelos de coregionalización.
+
+-   Ajustar un modelo de cokriging funcional para predecir los residuos del albedo del cielo en ubicaciones no observadas.
+
+-   Evaluar la calidad de las predicciones obtenidas y explorar la interpretación de los resultados en el contexto geográfico y climático de Inglaterra y Escocia.
+
+## **Variables**
+
+Este análisis se basa en datos meteorológicos registrados por el Environmental Change Network (ECN) del Reino Unido, correspondientes al mes de marzo del año 2015. Las observaciones se tomaron diariamente a las 12:00 del mediodía, en un total de nueve estaciones de monitoreo distribuidas en Inglaterra y Escocia. A continuación, se describen las variables utilizadas:
+
+-   **Albedo del cielo (promedio, W/m²)**: Es la variable de interés principal. Representa el promedio horario de la fracción de radiación solar reflejada por la atmósfera hacia el suelo. Aunque aparece expresada en unidades de W/m², operativamente se interpreta como un indicador de reflectancia atmosférica, estrechamente relacionada con la cobertura nubosa o condiciones del cielo. Se trata como una variable funcional, es decir, una función continua del tiempo durante el mes.
+
+-   **Radiación solar neta (promedio, W/m²)**: Variable auxiliar para el análisis conjunto mediante cokriging funcional. Refleja el balance de radiación (entrante menos saliente) y representa la energía neta absorbida en superficie. También es una variable funcional, registrada como promedio horario a las 12:00 p.m. cada día.
+
+Además, se consideraron variables adicionales esenciales para el análisis geoestadístico:
+
+-   **Fecha**: Día específico de medición. Para este estudio se usaron los datos del mes de marzo de 2015, con registros diarios a mediodía.
+
+-   **Estación de monitoreo**: Identificador del sitio geográfico de medición. Se incluyeron nueve estaciones, ubicadas tanto en Inglaterra como en Escocia.
+
+-   **Coordenada Este** y **Coordenada Norte**: Posiciones geográficas de cada estación, expresadas en metros de acuerdo con el sistema de referencia espacial británico (British National Grid). Estas coordenadas permiten representar la estructura espacial de los datos y calcular distancias entre estaciones.
+
+Estas variables permiten la construcción de curvas funcionales por estación, el análisis exploratorio inicial y la implementación del modelo geoestadístico funcional bivariado para estimar la variabilidad espacial del albedo del cielo.
+
+# ANÁLISIS DEL ALBEDO DEL CIELO COMO DATOS FUNCIONALES
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: false
+datos <- readRDS("datosuk.rds")
+# 1. ESTRUCTURACIÓN DE LOS DATOS FUNCIONALES ####
+
+# Asumimos que ya cargaste los datos como "datos"
+datos <- datos %>%
+  group_by(Estacion) %>%
+  arrange(FechaHora, .by_group = TRUE) %>%
+  mutate(t = row_number()) %>%
+  ungroup()
+
+# Lista de estaciones
+estaciones <- unique(datos$Estacion)
+
+# Lista funcional
+lista_funcional <- lapply(estaciones, function(est) {
+  sub <- datos %>% filter(Estacion == est) %>% arrange(t)
+  list(
+    t = sub$t,
+    Y = cbind(RadiacionNeta = sub$RadiacionNeta, AlbedoCielo = sub$AlbedoCielo),
+    coords = c(este = sub$Este[1], norte = sub$Norte[1])
+  )
+})
+
+names(lista_funcional) <- estaciones
+
+# Leer shapefile del Reino Unido
+uk_shp <- suppressMessages(st_read("CTRY_DEC_2021_UK_BGC.shp"))
+
+# Mantener solo Inglaterra y Escocia (filas 1 y 3 en este shapefile)
+uk_shp <- uk_shp[c(1, 3), ]
+
+# Disolver geometrías por región (opcional si hay subpartes)
+uk_shp <- st_union(uk_shp)
+
+# Separar en polígonos individuales
+uk_parts <- st_cast(uk_shp, "POLYGON")
+uk_parts <- st_sf(geometry = uk_parts)
+
+# Calcular área en km² y quitar unidades
+uk_parts$area_km2 <- as.numeric(st_area(uk_parts) / 1e6)
+
+# Filtrar polígonos grandes (ej. mayores a 1000 km²)
+uk_mainland <- uk_parts %>% filter(area_km2 > 3000)
+
+# Transformar  puntos a sf en el mismo CRS (EPSG:27700 - British National Grid)
+datos_sf <- st_as_sf(datos, coords = c("Este", "Norte"), crs = 27700)
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+# Graficar
+ggplot() +
+  geom_sf(data = uk_mainland, fill = "white", color = "black") +
+  geom_sf(data = datos_sf,  color = "red", alpha = 0.7) +
+  labs(title = "Estaciones de Monitoreo - Inglaterra y Escocia (continental)") +
+  theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank())
+
+```
+
+Para este estudio, el albedo del cielo se consideró como una variable que evoluciona a lo largo del tiempo, específicamente durante el mes de marzo de 2015. Aunque las mediciones originales son valores discretos —un dato por día a las 12:00 del mediodía en cada estación—, el objetivo de este análisis es modelarlas como funciones continuas, es decir, tratarlas como datos funcionales. Esta aproximación permite capturar mejor la variabilidad diaria y aplicar técnicas estadísticas diseñadas para curvas, como el cokriging funcional.
+
+Dado que los datos iniciales no están en formato funcional, fue necesario realizar un proceso de suavizado para transformarlos en funciones. Para ello, se utilizó una base de funciones B-spline de orden adecuado, definida sobre el rango temporal de interés (los días del mes). En este caso, se eligió una base con 8 funciones base, una cantidad que permite representar adecuadamente las principales características de las curvas sin sobreajustar a pequeñas fluctuaciones espurias.
+
+Posteriormente, para cada estación se realizó un ajuste individual utilizando el método de suavizado por mínimos cuadrados penalizados, a través del cual se generaron las representaciones funcionales tanto para la radiación solar neta como para el albedo del cielo. Este proceso permitió obtener una curva continua por estación para cada variable.
+
+Finalmente, las funciones estimadas para todas las estaciones fueron integradas en objetos funcionales multivariados, lo cual facilita su análisis conjunto en etapas posteriores. Con esto, las variables quedan representadas como funciones en el dominio temporal, lo que habilita su uso en el análisis funcional geoestadístico que se desarrollará en las siguientes secciones.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+# Número de funciones base
+nbasis <- 8
+basis <- create.bspline.basis(rangeval = range(datos$t), nbasis = nbasis)
+
+# Tiempos comunes
+t_grid <- sort(unique(datos$t))
+
+
+# Radiación Neta
+fdlist_rad <- lapply(lista_funcional, function(e) {
+  smooth.basis(e$t, e$Y[,1], basis)$fd
+})
+
+# Albedo del cielo
+fdlist_albedo <- lapply(lista_funcional, function(e) {
+  smooth.basis(e$t, e$Y[,2], basis)$fd
+})
+
+
+fd_rad <- fd(do.call(cbind, lapply(fdlist_rad, function(f) f$coefs)), basis)
+fd_albedo <- fd(do.call(cbind, lapply(fdlist_albedo, function(f) f$coefs)), basis)
+
+fd_multi <- list(RadiacionNeta = fd_rad, AlbedoCielo = fd_albedo)
+
+```
+
+## ANÁLISIS DESCRIPTIVO Y EXPLORATORIO
+
+Como primer paso del análisis descriptivo, se graficaron las curvas suavizadas para cada estación de monitoreo correspondientes a las variables albedo del cielo y radiación solar neta, tratadas como funciones continuas a lo largo de los 31 días del mes de marzo de 2015. El eje X representa el tiempo en días, y el eje Y muestra los valores de cada variable en sus respectivas unidades (W/m²).
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: hide
+# 7. GRAFICAR FUNCIONES SUAVIZADAS
+par(mfrow = c(1, 2))
+plot(fd_multi$AlbedoCielo, main = "Curvas suavizadas de Albedo del Cielo")
+plot(fd_multi$RadiacionNeta, main = "Curvas suavizadas de Radiación Neta")
+
+
+```
+
+Ambas variables muestran un comportamiento gráfico muy similar. Durante la primera mitad del mes, las curvas se comportan de manera altamente variable, sin una forma definida ni una tendencia común clara entre estaciones: algunas presentan valores altos, otras bajos, lo que refleja condiciones locales diversas como nubosidad, cobertura atmosférica o variabilidad en la radiación. Sin embargo, a partir del día 20 aproximadamente, en ambas variables se observa un patrón compartido: las curvas comienzan a alinearse, formando una especie de “montañita” entre los días 20 y 25, seguida de un descenso pronunciado alrededor del día 28, y un repunte final entre los días 30 y 31. Esta coincidencia sugiere la presencia de fenómenos meteorológicos regionales que afectaron simultáneamente a todas las estaciones, como una ventana de cielo despejado seguida de nubosidad y luego mayor insolación hacia el final del mes.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Graficar por estación
+par(mfrow = c(3, 3), mar = c(2.5, 2.5, 2, 1))
+for (i in 1:length(fd_multi$AlbedoCielo$coefs[1, ])) {
+  plot(fd_multi$AlbedoCielo[i], main = names(lista_funcional)[i],
+       xlab = "", ylab = "")
+}
+par(mfrow = c(1,1))
+```
+
+En la Figura se presentan las curvas correspondientes a la evolución diaria de una variable continua (no especificada) durante un mes, para diferentes regiones o estaciones (T02, T04, T05, ..., T12). El eje horizontal representa los días del mes (de 1 a 31), mientras que el eje vertical muestra los valores de la variable medida.
+
+En general, se observa una fuerte variabilidad temporal dentro del mes, con patrones no lineales evidentes en casi todas las estaciones. Algunas curvas presentan un comportamiento suave y unimodal, como es el caso de T06, donde se aprecia un descenso inicial seguido de una recuperación hacia el final del mes. Otras estaciones muestran patrones bimodales más marcados, como T04, T05, T09 y T12, con dos picos de mayor valor separados por un valle a mitad del mes. En varios casos, los valores aumentan notoriamente hacia el final del periodo (por ejemplo, T08 y T07), lo que sugiere una posible tendencia creciente al cierre del mes.
+
+Es destacable que no todas las estaciones siguen un mismo patrón, lo cual sugiere heterogeneidad espacial en el comportamiento de la variable. Esta variabilidad podría estar asociada a factores locales (climáticos, geográficos o de cobertura).
+
+### Análisis de la curva media funcional y variabilidad
+
+Posteriormente, se graficaron las curvas funcionales suavizadas de todas las estaciones junto con la curva media funcional para cada variable. En ambas variables —albedo del cielo y radiación neta— se observa que la curva media logra capturar apropiadamente el comportamiento general de las estaciones, especialmente en la segunda mitad del mes, donde las trayectorias tienden a alinearse más claramente con la media. No obstante, en los primeros días del mes, las curvas individuales presentan una alta dispersión alrededor de la media, lo que refleja una mayor heterogeneidad en las condiciones atmosféricas registradas en las distintas estaciones.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: hide
+
+# Albedo Cielo
+media_albedo <- mean.fd(fd_multi$AlbedoCielo)
+var_albedo <- var.fd(fd_multi$AlbedoCielo)
+std_albedo <- stddev.fd(fd_multi$AlbedoCielo)
+
+plot(fd_multi$AlbedoCielo, main = "Albedo del Cielo - Curvas originales", col = "gray")
+lines(media_albedo, lwd = 3, col = "red")
+
+# plot(var_albedo, main="Varianza Albedo", xlab = "t", ylab = "s")
+plot(std_albedo, main="Desviación Estándar Albedo", xlab = "Día", ylab = "Albedo")
+
+```
+
+Este patrón también se refleja en los gráficos de desviación estándar funcional. Para el albedo del cielo, se observa una alta variabilidad en los primeros días, con valores de desviación estándar cercanos a 120 W/m², lo que indica diferencias significativas entre estaciones. Conforme avanza el mes, la desviación estándar disminuye de manera progresiva, alcanzando su punto más bajo alrededor del día 27, con un valor cercano a 45 W/m². No obstante, en los últimos días del mes, la desviación vuelve a incrementarse drásticamente, lo que sugiere nuevamente una mayor inestabilidad atmosférica o condiciones divergentes entre los sitios monitoreados.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: hide
+
+# Radiación Neta
+media_rad <- mean.fd(fd_multi$RadiacionNeta)
+var_rad <- var.fd(fd_multi$RadiacionNeta)
+std_rad <- stddev.fd(fd_multi$RadiacionNeta)
+
+plot(fd_multi$RadiacionNeta, main = "Radiación Neta - Curvas originales", col = "gray")
+lines(media_rad, lwd = 3, col = "red")
+
+# plot(var_rad, main="Varianza Radiación Neta", xlab = "t", ylab = "s")
+plot(std_rad, main="Desviación Estándar Radiación Neta", xlab = "Día", ylab = "Radiación")
+
+```
+
+En el caso de la radiación neta, el comportamiento es muy similar. La variabilidad inicial es alta, comenzando con una desviación estándar cercana a 80 W/m², que disminuye hasta aproximadamente 30 W/m² hacia los días 13 o 14. Luego, la desviación estándar experimenta un leve incremento hacia los días 20 a 25, llegando a valores de aproximadamente 40 W/m², seguido por una nueva caída hacia los días 26 y 27. Sin embargo, al igual que con el albedo del cielo, los últimos días del mes muestran un fuerte aumento en la variabilidad, alcanzando una desviación estándar cercana a 100 W/m². Esta dinámica confirma que las condiciones de radiación en las estaciones fueron más estables a mitad de mes, mientras que los extremos del mes (inicio y fin) concentran los mayores niveles de incertidumbre o dispersión en ambas variables.
+
+### Centrado de curvas funcionales
+
+Con el fin de extraer la tendencia general y analizar adecuadamente los residuos funcionales, se centraron las curvas de ambas variables restando la media funcional a cada una de ellas.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: hide
+
+fd_rad_centrado <- center.fd(fd_multi$RadiacionNeta)
+fd_albedo_centrado <- center.fd(fd_multi$AlbedoCielo)
+
+par(mfrow = c(1, 2))
+plot(fd_albedo_centrado, main = "Albedo del Cielo (centrado)")
+plot(fd_rad_centrado, main = "Radiación Neta (centrada)")
+
+```
+
+Al graficar las nuevas curvas centradas, se observa que, aunque conservan una alta variabilidad y dispersión entre estaciones, ahora oscilan alrededor de cero, tal como se espera tras este procedimiento. En el caso del albedo del cielo, los valores centrados fluctúan entre aproximadamente -200 y 200 W/m², mientras que para la radiación neta se ubican entre -150 y 150 W/m², manteniendo formas irregulares que reflejan la complejidad de su comportamiento diario.
+
+### Correlación funcional cruzada
+
+Para evaluar la relación temporal entre las curvas del albedo del cielo y la radiación neta, se construyó un gráfico de imagen tipo mapa de calor que representa la correlación funcional cruzada entre ambas variables evaluadas sobre una grilla común de tiempo. En este gráfico, los ejes representan los días del mes de marzo para cada variable, y los colores indican el nivel de correlación entre los valores correspondientes de albedo y radiación.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: hide
+
+# Dominio funcional común
+tt <- seq(1, max(datos$t), length.out = 100)
+
+# Evaluar las funciones en la grilla
+mat_rad <- t(eval.fd(tt, fd_rad_centrado))
+mat_albedo <- t(eval.fd(tt, fd_albedo_centrado))
+
+# Matriz de correlación cruzada
+mat_cor <- cor(mat_rad, mat_albedo)
+
+# Asegura que haya espacio suficiente en la ventana gráfica
+dev.off()         # Cierra cualquier dispositivo gráfico abierto
+par(mfrow = c(1,1))  # Resetea el layout
+
+# Gráfico de imagen con leyenda
+paleta <- rev(heat.colors(100))
+layout(matrix(c(1, 2), ncol = 2), widths = c(4, 1))
+
+# Gráfico principal
+par(mar = c(5, 4, 4, 2) + 0.1)
+image(tt, tt, mat_cor, col = paleta,
+      xlab = "Tiempo Radiación", ylab = "Tiempo Albedo",
+      main = "Correlación funcional cruzada")
+
+# Leyenda
+par(mar = c(5, 2, 4, 4) + 0.1)
+z_legend <- matrix(seq(0, 1, length.out = 100), nrow = 1)
+image(x = 1:2, y = seq(0, 1, length.out = 100), z = z_legend,
+      col = paleta, axes = FALSE, xlab = "", ylab = "")
+axis(4, las = 1)
+mtext("Correlación", side = 4, line = 2)
+
+```
+
+Se observa una fuerte correlación positiva en la diagonal principal del gráfico, con valores entre 0.8 y 1, lo que indica que ambas variables están altamente relacionadas cuando se comparan en los mismos días. Este patrón sugiere una conexión directa entre la radiación neta recibida y la respuesta del albedo del cielo en esos momentos. Fuera de la diagonal, la correlación disminuye, presentando valores que oscilan entre 0.4 y 0.6, lo cual es esperable, dado que representa la relación entre días no coincidentes en el tiempo.
+
+Este resultado respalda el uso conjunto de ambas variables en un análisis de cokriging funcional, ya que evidencia una dependencia temporal significativa entre ellas.
+
+# CÁLCULO DE SEMIVARIOGRÁMAS FUNCIONALES EMPÍRICOS
+
+## Semivariogramas funcionales individuales
+
+Para caracterizar la dependencia espacial de las variables funcionales consideradas —el albedo del cielo y la radiación neta—, se calcularon sus respectivos semivariogramas funcionales empíricos.
+
+A diferencia del semivariograma tradicional, que se basa en la diferencia puntual entre observaciones escalares, el semivariograma funcional empírico se construye a partir de la distancia entre funciones observadas completas. En este caso, se utiliza la norma $L^2$ como medida de disimilitud entre curvas suavizadas.
+
+Para dos ubicaciones espaciales $s_i$ y $s_j$, con funciones observadas $X_i(t)$ y $X_j(t)$, el semivariograma funcional empírico para un rezago $h$ se define como:
+
+$$ \hat{\gamma}(h) = \frac{1}{2|N(h)|} \sum_{(i,j) \in N(h)} \left\| X_i(t) - X_j(t) \right\|_{L^2}^2 $$
+
+donde:
+
+-   $N(h)$ es el conjunto de pares de ubicaciones cuya distancia está dentro del intervalo correspondiente al rezago $h$,
+-   $\| \cdot \|_{L^2}$ es la norma $L^2$, definida como: $$
+    \left\| X_i(t) - X_j(t) \right\|_{L^2} = \left( \int_{T} \left[ X_i(t) - X_j(t) \right]^2 dt \right)^{1/2}
+    $$
+
+Se calcularon los semivariogramas funcionales empíricos para las variables albedo del cielo y radiación neta, con el fin de explorar su estructura de dependencia espacial. En ambos casos, no se presentan valores observados para los rezagos más pequeños debido a la escasa cantidad de pares de estaciones cercanas, lo cual es esperable considerando la limitada densidad espacial de estaciones.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: hide
+
+# 1. Centrar listas funcionales
+centrar_fdlist <- function(fdlist) {
+  tt <- seq(1, max(datos$t), length.out = 100)
+  mat_eval <- sapply(fdlist, function(fd) eval.fd(tt, fd))
+  media_vec <- rowMeans(mat_eval)
+  basis <- fdlist[[1]]$basis
+  media_fd <- smooth.basis(tt, media_vec, basis)$fd
+  lapply(fdlist, function(fd) fd - media_fd)
+}
+
+fdlist_albedo_centrado <- centrar_fdlist(fdlist_albedo)
+fdlist_rad_centrado    <- centrar_fdlist(fdlist_rad)
+
+# 3. Preparar coordenadas
+coords <- t(sapply(lista_funcional, function(x) x$coords))
+
+colnames(coords) <- c("este", "norte")
+
+
+dev.off()           # Cierra cualquier dispositivo gráfico que esté abierto (si existe)
+
+par(mfrow = c(1, 1))  # Restablece el layout a uno solo
+par(mar = c(5, 5, 4, 2))  # Márgenes amplios para evitar errores
+# 
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+# --- 1. Evaluar cada curva fd en una grilla común (por ejemplo 1:31 horas) ---
+mat_curvas <- sapply(fdlist_albedo_centrado, function(fd) eval.fd(1:31, fd))
+
+# --- 2. Crear objeto fdata ---
+fdata_albedo_centrado <- fdata(t(mat_curvas), argvals = 1:31)
+
+# --- 3. Calcular matriz de distancias funcionales L2 ---
+L2_albedo <- metric.lp(fdata_albedo_centrado, fdata_albedo_centrado, lp = 2)
+
+vario_albedo <- trace.variog(
+  coords = coords,
+  L2norm = L2_albedo,
+  bin = TRUE,
+  max.dist = 600000,
+  uvec = 12  # Divide en 6 bins iguales dentro del rango
+)
+
+plot(vario_albedo$u, vario_albedo$v, type = "b",
+     pch = 19, col = "blue",
+     xlim = c(0,600000),
+     ylim = c(0,800),
+     xlab = "Distancia espacial (m)",
+     ylab = "Semivarianza funcional",
+     main = "Semivariograma funcional (albedo)")
+```
+
+Para el albedo del cielo, el semivariograma comienza a ser observable a partir de distancias cercanas a los 100.000 metros, donde la semivarianza alcanza un valor aproximado de 500. Posteriormente, entre los 200.000 y 350.000 metros, se observa un ligero aumento y luego una estabilización en los valores, lo cual indica que a partir de los 200.000 metros la dependencia espacial comienza a debilitarse, y se alcanza una especie de meseta, lo que sugiere la presencia de una correlación espacial de mediano alcance.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+# --- 1. Evaluar cada curva fd en una grilla común (por ejemplo 1:31 horas) ---
+mat_curvas <- sapply(fdlist_rad_centrado, function(fd) eval.fd(1:31, fd))
+
+# --- 2. Crear objeto fdata ---
+fdata_rad_centrado <- fdata(t(mat_curvas), argvals = 1:31)
+
+# --- 3. Calcular matriz de distancias funcionales L2 ---
+L2_rad <- metric.lp(fdata_rad_centrado, fdata_rad_centrado, lp = 2)
+
+vario_rad <- trace.variog(
+  coords = coords,
+  L2norm = L2_rad,
+  bin = TRUE,
+  max.dist = 600000,
+  uvec = 12  # Divide en 6 bins iguales dentro del rango
+)
+
+plot(vario_rad$u, vario_rad$v, type = "b",
+     pch = 19, col = "blue",
+     xlim = c(0,600000),
+     ylim = c(0,500),
+     xlab = "Distancia espacial (m)",
+     ylab = "Semivarianza funcional",
+     main = "Semivariograma funcional (radiación neta)")
+
+par(mfrow = c(1, 1))           # Una sola figura
+par(mar = c(5, 4, 4, 2) + 0.1) # Márgenes por defecto
+
+```
+
+En el caso de la radiación neta, el comportamiento es similar: se observa un aumento de la semivarianza con la distancia, alcanzando aproximadamente 300 en los primeros rezagos visibles (alrededor de los 100.000 metros). A partir de ahí, la semivarianza sigue una oscilación suave y también tiende a estabilizarse hacia los 200.000 metros, lo que sugiere un patrón espacial comparable al del albedo del cielo.
+
+Este comportamiento indica que, en ambos casos, las estaciones relativamente cercanas tienden a tener valores similares de las variables, mientras que a mayores distancias, la dependencia espacial se reduce. Esto es coherente con fenómenos meteorológicos y atmosféricos que actúan a escalas regionales, y respalda el uso de modelos de geoestadística funcional para capturar dicha estructura.
+
+## Semivariograma funcional cruzado
+
+Además de analizar las estructuras espaciales de dependencia de las variables por separado, es de particular interés estudiar la relación espacial conjunta entre el albedo del cielo y la radiación neta. Para ello, se calculó el semivariograma cruzado funcional empírico, el cual permite medir la disimilitud funcional entre dos variables diferentes observadas en distintas ubicaciones, en función de la distancia espacial.
+
+Este semivariograma se define, para un rezago $h$, como:
+
+$$
+\hat{\gamma}_{12}(h) = \frac{1}{2|N(h)|} \sum_{(i,j) \in N(h)} \left\langle X_i^{(1)}(t) - X_j^{(1)}(t),\ X_i^{(2)}(t) - X_j^{(2)}(t) \right\rangle_{L^2}
+$$
+
+donde:
+
+-   $X^{(1)}_i(t)$ y $X^{(2)}_i(t)$ representan las funciones observadas en la ubicación $i$ para la radiación neta y el albedo del cielo, respectivamente.
+-   $\left\langle f, g \right\rangle_{L^2}$ denota el producto interno funcional: $$
+    \left\langle f,\ g \right\rangle_{L^2} = \int_T f(t)\ g(t)\ dt
+    $$
+-   $N(h)$ es el conjunto de pares de ubicaciones cuya distancia está dentro del intervalo asociado al rezago $h$.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+
+variograma_cruzado_funcional <- function(mat1, mat2, coords, t_grid,
+                                         breaks = seq(0, 600000, by = 100000),  # <- ¡YA NO USAMOS bin_width!
+                                         min_pares = 0,
+                                         titulo = "Semivariograma cruzado funcional empírico") {
+  # --- 1. Definir producto interno cruzado funcional tipo L2 ---
+  L2_cross <- function(f1_1, f1_2, f2_1, f2_2, t) {
+    dif1 <- f1_1 - f1_2
+    dif2 <- f2_1 - f2_2
+    sum(dif1 * dif2) * (max(t) - min(t)) / length(t)
+  }
+  
+  # --- 2. Calcular matriz de distancias espaciales ---
+  D <- fields::rdist(coords)
+  dist_vals <- D[lower.tri(D)]
+  
+  # --- 3. Calcular puntos medios de los bins ---
+  bins_mids <- head(breaks, -1) + diff(breaks) / 2
+  
+  # --- 4. Inicializar vectores ---
+  gamma_vals <- numeric(length(bins_mids))
+  np_vals <- numeric(length(bins_mids))
+  n <- nrow(coords)
+  
+  # --- 5. Calcular gamma(h) en cada bin ---
+  for (b in seq_along(bins_mids)) {
+    suma <- 0
+    conteo <- 0
+    for (i in 1:(n - 1)) {
+      for (j in (i + 1):n) {
+        d_ij <- D[i, j]
+        if (is.finite(d_ij) && d_ij >= breaks[b] && d_ij < breaks[b + 1]) {
+          conteo <- conteo + 1
+          suma <- suma + L2_cross(mat1[i, ], mat1[j, ], mat2[i, ], mat2[j, ], t_grid)
+        }
+      }
+    }
+    gamma_vals[b] <- ifelse(conteo > 0, 0.5 * suma / conteo, NA)
+    np_vals[b] <- conteo
+  }
+  
+  # --- 6. Crear data frame de resultados ---
+  df <- data.frame(h = bins_mids, gamma = gamma_vals, n.pares = np_vals)
+  df_filtrado <- df %>% dplyr::filter(n.pares > min_pares)
+  
+  # --- 7. Graficar si hay datos suficientes ---
+  if (nrow(df_filtrado) == 0 || all(is.na(df_filtrado$gamma))) {
+    warning("No hay datos suficientes para graficar.")
+    return(df)
+  }
+  
+  plot(df_filtrado$h, df_filtrado$gamma, type = "b", pch = 19, col = "darkgreen",
+       xlab = "Distancia (m)", ylab = expression(gamma[12](h)),
+       xlim = c(0, 500000),
+       ylim = c(0,150000),
+       main = titulo)
+  
+  return(df_filtrado)
+}
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+# --- Definir la grilla de distancias (igual que en trace.variog) ---
+breaks <- seq(0, 600000, by = 40990.05)
+
+# --- Calcular y graficar el semivariograma cruzado funcional ---
+vario_cruzado <- variograma_cruzado_funcional(
+  mat1   = mat_rad,
+  mat2   = mat_albedo,
+  coords = coords,
+  t_grid = tt,
+  breaks = breaks,
+  min_pares = 1,  # Ajusta según necesidad
+  titulo = "Semivariograma cruzado funcional: Radiación vs Albedo"
+)
+```
+
+El gráfico resultante del semivariograma cruzado funcional muestra que, en los primeros rezagos (menores a aproximadamente 50.000 metros), no se presentan observaciones debido a la escasez de pares espaciales a distancias tan cortas. Sin embargo, tal como se espera, la semivarianza cruzada tiende a ser baja en estas distancias por la alta similitud entre funciones cercanas.
+
+A medida que la distancia aumenta, la semivarianza cruzada incrementa también, alcanzando un comportamiento que tiende a estabilizarse alrededor de los 200.000 metros. En esta zona, las diferencias conjuntas entre ambas variables funcionales tienden a permanecer constantes, lo cual sugiere una correlación estructural moderadamente estable a esa escala espacial. A partir de los 350.000 metros, la semivarianza cruzada incluso muestra una leve disminución, lo que podría indicar cierta reversión de patrones conjuntos o limitaciones de pares a esas distancias extremas.
+
+En general, este comportamiento refleja una relación funcional coherente entre las dos variables: estaciones más cercanas tienden a compartir patrones similares tanto en albedo del cielo como en radiación neta, y esta relación pierde fuerza a medida que se incrementa la distancia espacial.
+
+# AJUSTE DE MODELOS TEÓRICOS PARA LOS SEMIVARIOGRAMAS FUNCIONALES
+
+Una vez obtenidos los semivariogramas funcionales empíricos —tanto individuales para cada variable como el cruzado—, se procedió al ajuste de diferentes modelos teóricos con el fin de representar adecuadamente la estructura de dependencia espacial de los datos funcionales. Para cada uno de los semivariogramas, se probaron cuatro tipos de modelos: exponencial, gaussiano, wave (ondulatorio) y esférico.
+
+El criterio utilizado para seleccionar el mejor modelo fue el Error Cuadrático Medio de la Raíz (RMSE) entre los valores empíricos del semivariograma y los valores ajustados por cada modelo. Este enfoque permitió identificar cuál de las funciones teóricas lograba un mejor ajuste al comportamiento observado de los datos.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+ajustar_modelos_semivariograma <- function(vario, 
+                                           titulo = "Modelos ajustados al semivariograma",
+                                           colores = c("black", "red", "blue", "green4"),
+                                           lineas = c("solid", "dashed", "dotted", "dotdash")) {
+  # --- 1. Preparar datos ---
+  if (!is.null(vario$u) && !is.null(vario$v)) {
+    df <- data.frame(h = vario$u, gamma = vario$v)  # caso trace.variog
+  } else if (!is.null(vario$h) && !is.null(vario$gamma)) {
+    df <- data.frame(h = vario$h, gamma = vario$gamma)  # caso variograma_cruzado_funcional
+  } else {
+    stop("Objeto de semivariograma no válido.")
+  }
+  df <- na.omit(df)
+  
+  # --- 2. Definir modelos teóricos ---
+  modelos <- list(
+    exponencial = function(h, sill, range) sill * (1 - exp(-h / range)),
+    gaussiano   = function(h, sill, range) sill * (1 - exp(-(h^2) / (range^2))),
+    wave        = function(h, sill, range) ifelse(h == 0, 0, sill * (1 - sin(h / range) / (h / range))),
+    esferico    = function(h, sill, range) ifelse(h < range,
+                                                  sill * (1.5 * (h / range) - 0.5 * (h / range)^3),
+                                                  sill)
+  )
+  
+  # --- 3. Definir valores iniciales adaptados por modelo ---
+  valores_iniciales <- list(
+    exponencial = list(sill = max(df$gamma), range = max(df$h) / 3),
+    gaussiano   = list(sill = max(df$gamma), range = max(df$h) / 2),
+    wave        = list(sill = max(df$gamma), range = max(df$h) / 4),
+    esferico    = list(sill = max(df$gamma), range = max(df$h) / 3)
+  )
+  
+  # --- 4. Ajustar modelos ---
+  ajustes <- list()
+  for (nombre in names(modelos)) {
+    modelo <- modelos[[nombre]]
+    start_vals <- valores_iniciales[[nombre]]
+    ajustes[[nombre]] <- tryCatch({
+      nls(
+        gamma ~ modelo(h, sill, range),
+        data = df,
+        start = start_vals,
+        control = nls.control(maxiter = 200)
+      )
+    }, error = function(e) NULL)
+  }
+  
+  # --- 5. Calcular RMSE ---
+  rmse_modelos <- sapply(names(ajustes), function(nombre) {
+    fit <- ajustes[[nombre]]
+    if (!is.null(fit)) {
+      coefs <- coef(fit)
+      pred <- with(df, modelos[[nombre]](h, coefs["sill"], coefs["range"]))
+      sqrt(mean((df$gamma - pred)^2, na.rm = TRUE))
+    } else {
+      NA
+    }
+  })
+  rmse_df <- data.frame(Modelo = names(rmse_modelos), RMSE = rmse_modelos)
+  rmse_df <- rmse_df[order(rmse_df$RMSE), ]
+  
+  # --- 6. Graficar resultados ---
+  plot(df$h, df$gamma, type = "b", pch = 19, col = "gray30",
+       xlab = "Distancia (m)", ylab = expression(gamma(h)),
+       main = titulo,
+       ylim = c(0, max(df$gamma) * 1.1),
+       xlim = c(0, max(df$h)))
+  
+  legend_labels <- c()
+  i <- 1
+  for (nombre in names(ajustes)) {
+    fit <- ajustes[[nombre]]
+    if (!is.null(fit)) {
+      coefs <- coef(fit)
+      curve(
+        modelos[[nombre]](x, coefs["sill"], coefs["range"]),
+        from = 0, to = max(df$h),
+        add = TRUE,
+        col = colores[i], lwd = 2, lty = lineas[i]
+      )
+      legend_labels <- c(legend_labels, nombre)
+      i <- i + 1
+    }
+  }
+  
+  legend("topleft", legend = legend_labels,
+         col = colores[1:length(legend_labels)],
+         lwd = 2, lty = lineas[1:length(legend_labels)],
+         title = "Modelos", cex = 0.8, bty = "n")
+  
+  # --- 7. Imprimir RMSEs y retornar ---
+  print(rmse_df)
+  return(list(ajustes = ajustes, RMSE = rmse_df))
+}
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: hide
+
+# 1. Para el albedo
+ajustar_modelos_semivariograma(vario_albedo, titulo = "Modelos ajustados al semivariograma (Albedo)")
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: hide
+
+# 2. Para la radiación neta
+ajustar_modelos_semivariograma(vario_rad, titulo = "Modelos ajustados al semivariograma (Radiación neta)")
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: hide
+
+# 3. Para el cruzado (radiación vs albedo)
+ajustar_modelos_semivariograma(vario_cruzado, titulo = "Modelos ajustados al semivariograma cruzado")
+
+```
+
+-   Para el semivariograma funcional del albedo del cielo, el modelo exponencial presentó el menor RMSE, por lo que fue seleccionado como el más adecuado para describir su estructura espacial.
+
+-   De forma análoga, para el semivariograma funcional de la radiación neta, también el modelo exponencial ofreció el mejor desempeño en términos del error de ajuste.
+
+-   En el caso del semivariograma cruzado funcional entre la radiación neta y el albedo del cielo, el modelo que mejor capturó la covariación espacial entre ambas variables fue el wave, reflejando posiblemente una interacción más compleja u oscilatoria entre estas magnitudes en el espacio.
+
+En todos los casos, los modelos seleccionados lograron ajustarse visualmente de forma adecuada a los puntos observados en los semivariogramas empíricos, representando con fidelidad las tendencias espaciales presentes en los datos funcionales.
+
+# COKRIGING FUNCIONAL PARA LA PREDICCIÓN DEL ALBEDO DEL CIELO
+
+Luego del ajuste de los modelos variográficos individuales y cruzado, se procedió a implementar el método de cokriging funcional con el objetivo de predecir el comportamiento funcional del albedo del cielo, apoyándose en la información adicional provista por la radiación neta.
+
+Para ello, se utilizó una función propia que implementa el cokriging funcional en una ubicación específica $h_0$, basándose en las distancias espaciales entre las estaciones y los modelos de covarianza teóricos previamente ajustados (exponencial para ambas variables individuales, y wave para el modelo cruzado).
+
+El procedimiento seguido consistió en:
+
+1.  Evaluar las curvas funcionales suavizadas y centradas para ambas variables en una grilla temporal común (los 31 días del mes de marzo).
+
+2.  Calcular las matrices de covarianza entre las estaciones, de acuerdo con los modelos variográficos ajustados para cada variable y para el componente cruzado.
+
+3.  Construir la matriz de covarianza conjunta que incluye las relaciones entre las dos variables.
+
+4.  Calcular la covarianza entre la nueva ubicación $h_0$ y las estaciones disponibles, para ambas variables.
+
+5.  Resolver el sistema lineal que permite obtener los pesos óptimos del cokriging.
+
+6.  Obtener la predicción funcional del albedo del cielo como una combinación ponderada de las curvas funcionales observadas de ambas variables.
+
+Los parámetros utilizados fueron:
+
+-   Para el albedo del cielo: silla = 680.6, rango = 74,831.4
+
+-   Para la radiación neta: silla = 379.1, rango = 64,092.3
+
+-   Para el componente cruzado: sill = 113,525, rango = 62,768
+
+Este procedimiento permite incorporar no solo la información espacial y funcional del albedo del cielo, sino también la estructura conjunta de dependencia con la radiación neta, mejorando así la precisión de las predicciones.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+# --- 1. Crear grilla temporal de 31 días ---
+t_dias_mes <- 1:31
+
+# --- 2. Evaluar curvas funcionales centradas en la grilla temporal ---
+mat_albedo <- t(sapply(fdlist_albedo_centrado, function(fd) eval.fd(t_dias_mes, fd)))
+mat_rad    <- t(sapply(fdlist_rad_centrado,    function(fd) eval.fd(t_dias_mes, fd)))
+
+# --- 3. Definir función de cokriging funcional ---
+cokriging_funcional <- function(mat1, mat2, coords, t_grid,
+                                h0, modelo1, modelo2, modelo12,
+                                sill1, range1, sill2, range2, sill12, range12) {
+  n <- nrow(coords)
+  
+  # 1. Calcular distancias espaciales a h0
+  D <- fields::rdist(coords, matrix(h0, ncol = 2))
+  
+  # 2. Funciones de covarianza
+  cov_fun <- list(
+    exponencial = function(h, sill, range) sill * exp(-h / range),
+    gaussiano   = function(h, sill, range) sill * exp(-(h^2) / (range^2)),
+    wave        = function(h, sill, range) ifelse(h == 0, sill, sill * sin(h / range) / (h / range)),
+    esferico    = function(h, sill, range) ifelse(h < range,
+                                                  sill * (1 - 1.5 * (h / range) + 0.5 * (h / range)^3),
+                                                  0)
+  )
+  
+  # 3. Matrices de covarianza entre estaciones
+  C1  <- cov_fun[[modelo1]](fields::rdist(coords), sill1, range1)
+  C2  <- cov_fun[[modelo2]](fields::rdist(coords), sill2, range2)
+  C12 <- cov_fun[[modelo12]](fields::rdist(coords), sill12, range12)
+  
+  # 4. Matriz bloque (2n × 2n)
+  C_block <- rbind(
+    cbind(C1, C12),
+    cbind(t(C12), C2)
+  )
+  
+  # 5. Vector de covarianza con h0
+  c1 <- cov_fun[[modelo1]](D, sill1, range1)
+  c2 <- cov_fun[[modelo2]](D, sill2, range2)
+  c  <- c(c1, c2)
+  
+  # 6. Resolver sistema lineal para obtener pesos
+  pesos <- solve(C_block, c)
+  
+  # 7. Predicción funcional (combinación lineal ponderada)
+  pred1 <- sweep(mat1, 1, pesos[1:n], "*")
+  pred2 <- sweep(mat2, 1, pesos[(n + 1):(2 * n)], "*")
+  pred_fun <- colSums(pred1 + pred2)
+  
+  return(data.frame(t = t_grid, pred = pred_fun))
+}
+
+# --- 4. Parámetros ajustados de los modelos variográficos ---
+sill_albedo     <- 680.6      # desde el ajuste del semivariograma del albedo
+range_albedo    <- 74831.4 
+sill_radiacion  <- 379.1      # desde el ajuste del semivariograma de la radiación neta
+range_radiacion <- 64092.3 
+sill_cruzado    <- 113525       # desde el ajuste del semivariograma cruzado
+range_cruzado   <- 62768 
+
+```
+
+## Análisis Espacio-Temporal de los Residuos mediante coKriging Funcional
+
+El objetivo principal de este análisis no es predecir el albedo del cielo en ubicaciones específicas, sino comprender su variabilidad funcional respecto a la media global. Para ello, se empleó el cokriging funcional utilizando la radiación solar neta como variable auxiliar, y se realizaron predicciones espaciales sobre los residuos funcionales del albedo.
+
+Se construyeron mapas predichos para los días 5, 10, 15, 20, 25 y 30 del mes, sobre el área continental de Inglaterra y Escocia. En estos mapas, cada punto representa la magnitud del residuo funcional, es decir, cuánto se desvía el albedo en esa ubicación con respecto al comportamiento promedio global (la media funcional). Los colores oscuros (negros, morados, azules) indican residuos negativos —zonas con albedo inferior al promedio—, mientras que los colores claros (rojo, rosado, blanco) indican residuos positivos —zonas con albedo superior al promedio.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+library(sf)
+library(ggplot2)
+library(dplyr)
+
+# --- 1. Crear grilla sobre el área continental ---
+bbox <- st_bbox(uk_mainland)
+resolucion <- 5000
+
+grid_points <- expand.grid(
+  x = seq(bbox$xmin, bbox$xmax, by = resolucion),
+  y = seq(bbox$ymin, bbox$ymax, by = resolucion)
+)
+
+grid_sf <- st_as_sf(grid_points, coords = c("x", "y"), crs = 27700)
+grid_sf <- grid_sf[st_intersects(grid_sf, uk_mainland, sparse = FALSE), ]
+grid_coords <- st_coordinates(grid_sf)
+
+# --- 2. Definir días y contenedor de predicciones ---
+dias_a_graficar <- c(5, 10, 15, 20, 25, 30)
+predicciones_total <- data.frame()
+
+# --- 3. Cokriging funcional en cada punto del grid ---
+for (i in seq_len(nrow(grid_coords))) {
+  punto <- grid_coords[i, ]
+  
+  pred <- tryCatch({
+    cokriging_funcional(
+      mat1 = mat_albedo,
+      mat2 = mat_rad,
+      coords = coords,
+      t_grid = t_dias_mes,
+      h0 = punto,
+      modelo1 = "exponencial",
+      modelo2 = "exponencial",
+      modelo12 = "wave",
+      sill1 = sill_albedo, range1 = range_albedo,
+      sill2 = sill_radiacion, range2 = range_radiacion,
+      sill12 = sill_cruzado, range12 = range_cruzado
+    )
+  }, error = function(e) NULL)
+  
+  if (!is.null(pred)) {
+    pred_dias <- pred %>%
+      filter(t %in% dias_a_graficar) %>%
+      mutate(x = punto[1], y = punto[2])
+    predicciones_total <- bind_rows(predicciones_total, pred_dias)
+  }
+}
+
+# --- 4. Calcular 20 cuantiles y asignar colores fijos ---
+colores_ordenados <- c(
+  "#000000", "#2E0854", "#4B0082", "#0000CD", "#1E90FF",
+  "#00CED1", "#00FF7F", "#7FFF00", "#ADFF2F", "#FFFF00",
+  "#FFD700", "#FFA500", "#FF8C00", "#FF6347", "#FF4500",
+  "#FF0000", "#DC143C", "#FF69B4", "#FFC0CB", "#FFFFFF"
+)
+
+# Cuantiles de todas las predicciones
+breaks <- quantile(predicciones_total$pred, probs = seq(0, 1, length.out = 21), na.rm = TRUE)
+
+# Etiquetas de cada intervalo
+etiquetas <- sapply(1:20, function(i) {
+  paste0("[", round(breaks[i], 2), ", ", round(breaks[i + 1], 2), ")")
+})
+
+# Asignar clase a cada predicción
+predicciones_total <- predicciones_total %>%
+  mutate(
+    clase = cut(pred, breaks = breaks, labels = etiquetas, include.lowest = TRUE)
+  )
+
+# --- 5. Graficar mapas con escala fija de colores ---
+for (dia in dias_a_graficar) {
+  gg <- predicciones_total %>%
+    filter(t == dia) %>%
+    ggplot() +
+    geom_tile(aes(x = x, y = y, fill = clase)) +
+    geom_sf(data = uk_mainland, fill = NA, color = "black", inherit.aes = FALSE) +
+    scale_fill_manual(
+      name = "Albedo predicho",
+      values = setNames(colores_ordenados, etiquetas),
+      drop = FALSE,
+      guide = guide_legend(keyheight = unit(0.25, "cm"), ncol = 1)
+    ) +
+    coord_sf(crs = 27700) +
+    labs(title = paste("Predicción de Albedo del Cielo - Día", dia)) +
+    theme_minimal() +
+    theme(
+      legend.position = "right",
+      legend.key.size = unit(0.25, "cm"),
+      legend.text = element_text(size = 6),
+      plot.title = element_text(margin = margin(b = 10))
+    )
+  
+  print(gg)
+}
+
+```
+
+En cuanto a la evolución espacio-temporal:
+
+-   **Día 5**: Se observa alta variabilidad regional. La zona sur presenta contrastes fuertes, con comportamientos distintos incluso entre estaciones cercanas.
+
+-   **Día 10**: Se evidencia una transición: la región suroriental, que tenía residuos bajos, ahora presenta valores positivos elevados. La región central desciende a valores negativos.
+
+-   **Día 15**: El centro muestra una ligera recuperación hacia la media. El noroccidente comienza a destacar con residuos más positivos.
+
+-   **Día 20**: Se invierten comportamientos en el suroriental, y el centro se estabiliza alrededor de la media. El nororiente se modera.
+
+-   **Día 25**: Persisten valores negativos en el centro y noroccidente, mientras el sur mantiene una mezcla de zonas con residuos tanto positivos como negativos.
+
+-   **Día 30**: El patrón se consolida: el noroccidente presenta residuos negativos más marcados, el centro vuelve a estabilizarse, y el suroriental continúa mostrando alta heterogeneidad.
+
+Este comportamiento evidencia la riqueza y complejidad del fenómeno analizado, confirmando la utilidad del cokriging funcional como herramienta para estudiar patrones espacio-temporales de variabilidad más allá de las medias marginales.
+
+## Comportamiento Temporal de los Residuos Funcionales en Puntos Específicos
+
+Para complementar el análisis espacial, se seleccionaron cinco ubicaciones distribuidas en distintas zonas del área continental del Reino Unido, con el fin de examinar el comportamiento temporal de los residuos funcionales del albedo del cielo predichos mediante cokriging funcional.
+
+Recordando que los residuos representan la diferencia entre el albedo local y la media global funcional, valores positivos indican mayor albedo del esperado, y valores negativos indican menor albedo del esperado.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+library(ggplot2)
+library(sf)
+library(patchwork)  # para combinar gráficos
+
+
+# --- Crear lista de ubicaciones para predecir ---
+ubicaciones <- list(
+  c(366400, 140094),  # Zona sur-occidental
+  c(386700, 621804),  # Oriente
+  c(350000, 800000),  # Zona nororiental
+  c(350000, 350000),  # Centro-sur
+  c(400000, 500000)   # Centro
+)
+
+
+# Evaluar tendencia (si la vas a usar luego)
+tendencia_global <- eval.fd(t_dias_mes, media_albedo)
+
+# Convertir lista de ubicaciones en sf
+ubicaciones_sf <- do.call(rbind, lapply(ubicaciones, function(x) data.frame(x = x[1], y = x[2])))
+ubicaciones_sf <- st_as_sf(ubicaciones_sf, coords = c("x", "y"), crs = 27700)
+
+# Bucle para generar gráfico combinado por ubicación
+for (i in seq_along(ubicaciones)) {
+  h0 <- ubicaciones[[i]]
+  
+  pred_cokriging <- cokriging_funcional(
+    mat1   = mat_albedo,
+    mat2   = mat_rad,
+    coords = coords,
+    t_grid = t_dias_mes,
+    h0     = h0,
+    modelo1  = "exponencial",
+    modelo2  = "exponencial",
+    modelo12 = "wave",
+    sill1  = sill_albedo,
+    range1 = range_albedo,
+    sill2  = sill_radiacion,
+    range2 = range_radiacion,
+    sill12 = sill_cruzado,
+    range12 = range_cruzado
+  )
+  
+  # --- Gráfico 1: Curva funcional predicha ---
+  curva_plot <- ggplot(pred_cokriging, aes(x = t, y = pred)) +
+    geom_line(color = "blue", linewidth = 1) +
+    labs(
+      title = paste("Predicción funcional en punto", i),
+      x = "Día del mes", y = "Predicción"
+    ) +
+    theme_minimal()
+  
+  # --- Gráfico 2: Mapa con punto resaltado ---
+  punto_sf <- st_as_sf(data.frame(x = h0[1], y = h0[2]), coords = c("x", "y"), crs = 27700)
+  
+  mapa_plot <- ggplot() +
+    geom_sf(data = uk_mainland, fill = "white", color = "black") +
+    geom_sf(data = punto_sf, color = "red", size = 3) +
+    coord_sf(crs = 27700) +
+    labs(title = "Ubicación de la predicción") +
+    theme_minimal() +
+    theme(
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title = element_blank()
+    )
+  
+  # --- Combinar ambos gráficos ---
+  combinado <- curva_plot + mapa_plot + plot_layout(widths = c(2, 1))
+  print(combinado)
+}
+
+```
+
+Los resultados fueron los siguientes:
+
+-   **Punto 1 (zona sur):** La predicción inicia con un valor muy bajo (alrededor de -6), pero sube rápidamente hasta alcanzar un pico de 2.6 hacia el día 5. Posteriormente, se observa una oscilación descendente que termina estabilizándose hacia el día 30. Este comportamiento sugiere una zona con una variación muy marcada del albedo en los primeros días, que luego tiende a estabilizarse.
+
+-   **Punto 2 (zona continental central):** El residuo comienza alto (\~1.3), pero cae rápidamente a -0.5 en el día 5. Luego, se presentan fluctuaciones periódicas, alternando entre valles y picos, aunque con amplitud decreciente hacia el final del mes (cerrando en -1.2). Este patrón revela comportamientos funcionales fuertemente oscilatorios pero con tendencia decreciente.
+
+-   **Punto 3 (zona nororiental):** Inicia cercano a 0, desciende hasta -1 hacia el día 12, y luego experimenta un ascenso continuo, alcanzando valores positivos cercanos a 2 hacia el día 30. Esto refleja una tendencia creciente sostenida del albedo en esta región.
+
+-   **Punto 4 (centro-sur):** Comienza con un valor moderadamente positivo (0.3), desciende gradualmente hasta -0.2 en el día 12, y posteriormente sube hasta 0.3 en el día 20. Hacia el final del mes, la predicción tiende nuevamente a 0. Este comportamiento representa un ciclo de bajada y subida que concluye en estabilización.
+
+-   **Punto 5 (centro urbano):** Presenta una predicción inicial extremadamente baja (-2), seguida por un aumento abrupto hacia la media (\~0) en los primeros días. Posteriormente, muestra un patrón oscilatorio alrededor de la media, con fluctuaciones entre valores positivos y negativos sin una tendencia clara.
+
+En conjunto, estos cinco casos ilustran la diversidad de comportamientos funcionales del albedo del cielo a lo largo del mes, confirmando que existe una fuerte heterogeneidad temporal en diferentes zonas, incluso en áreas cercanas. Este análisis permite identificar zonas de comportamiento extremo, patrones de oscilación y tendencias crecientes o decrecientes, lo que enriquece la comprensión del fenómeno más allá de lo que permitiría un análisis promedio o estático.
+
+## Validación cruzada funcional con métricas por estación y por día
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: hide
+
+# --- 1. Crear objetos auxiliares ---
+n_est <- nrow(coords)
+t_grid <- t_dias_mes
+errores_total <- matrix(NA, nrow = n_est, ncol = length(t_grid))  # errores por estación
+
+# --- 2. Bucle leave-one-out ---
+for (i in 1:n_est) {
+  cat("Validando estación", i, "de", n_est, "\n")
+  
+  # Estación de prueba
+  coords_test <- coords[i, ]
+  mat1_test   <- mat_albedo[i, ]
+  
+  # Estaciones de entrenamiento
+  coords_train <- coords[-i, ]
+  mat1_train   <- mat_albedo[-i, ]
+  mat2_train   <- mat_rad[-i, ]
+  
+  # Ejecutar cokriging funcional
+  pred_i <- tryCatch({
+    cokriging_funcional(
+      mat1 = mat1_train,
+      mat2 = mat2_train,
+      coords = coords_train,
+      t_grid = t_grid,
+      h0 = coords_test,
+      modelo1 = "exponencial",
+      modelo2 = "exponencial",
+      modelo12 = "wave",
+      sill1 = sill_albedo,
+      range1 = range_albedo,
+      sill2 = sill_radiacion,
+      range2 = range_radiacion,
+      sill12 = sill_cruzado,
+      range12 = range_cruzado
+    )
+  }, error = function(e) NULL)
+  
+  if (!is.null(pred_i)) {
+    errores_total[i, ] <- mat1_test - pred_i$pred  # residuos = observado - predicho
+  }
+}
+
+# --- 3. Calcular métricas globales ---
+residuos_vec <- c(errores_total)
+residuos_vec <- residuos_vec[!is.na(residuos_vec)]  # quitar NA por si falló alguna
+
+RMSE <- sqrt(mean(residuos_vec^2))
+MAE  <- mean(abs(residuos_vec))
+
+cat("RMSE:", round(RMSE, 3), "\n")
+cat("MAE :", round(MAE, 3), "\n")
+
+```
+
+Al evaluar la calidad predictiva del modelo de cokriging funcional, se obtuvo un error cuadrático medio (RMSE) de 85.53 y un error absoluto medio (MAE) de 68.44. Estos valores fueron contrastados con la desviación estándar de los valores reales (85.76), encontrándose que el error de predicción se aproxima bastante a la variabilidad natural de los datos.
+
+Este resultado sugiere que, si bien el modelo logra capturar parte del comportamiento funcional del albedo del cielo, no ofrece una mejora sustancial en comparación con una predicción basada exclusivamente en la media global.
+
+Sin embargo, este comportamiento puede explicarse en buena medida por la configuración del problema: se cuenta con únicamente nueve estaciones de monitoreo distribuidas en una extensión geográfica considerable, lo que limita la capacidad del modelo para captar estructuras espaciales finas. La escasa densidad espacial y la posible heterogeneidad en las condiciones locales (climáticas o de cobertura) hacen que las predicciones estén condicionadas por la distancia a las estaciones más cercanas y su comportamiento promedio.
+
+No obstante, el modelo es capaz de reconstruir adecuadamente la estructura general del fenómeno y proporciona un marco flexible para incorporar información auxiliar (como la radiación neta). En futuras aplicaciones, la inclusión de más estaciones o de covariables adicionales podría potenciar notablemente el desempeño predictivo del enfoque.
+
+# CONCLUSIÓN GENERAL
+
+El análisis funcional realizado sobre el albedo del cielo en el Reino Unido, auxiliado por la radiación solar neta mediante técnicas de cokriging funcional, permitió entender no solo el comportamiento temporal de esta variable atmosférica, sino también su variabilidad espacial con respecto a una media global. A través del centrado funcional y la modelación variográfica, se logró caracterizar la dependencia espacio-temporal de las curvas, y con ello, proyectar predicciones a lo largo del territorio.
+
+Los mapas obtenidos cada cinco días revelaron una fuerte variabilidad en el comportamiento del albedo, evidenciando que algunas zonas tienen sistemáticamente valores superiores o inferiores al promedio. Estas diferencias no son aleatorias: reflejan dinámicas locales del clima, de la cobertura de nubes, de los suelos o incluso de patrones de radiación —y por tanto, tienen consecuencias reales en la vida cotidiana, como la percepción de luminosidad o el balance energético superficial.
+
+Aunque los indicadores de calidad como el RMSE y el MAE no mostraron una mejora notable respecto a la desviación estándar de los datos, esto se entiende dentro del contexto del estudio: solo se contaba con nueve estaciones de monitoreo distribuidas en un territorio amplio, lo que limita la capacidad de interpolación espacial del modelo. Aun así, el modelo reproduce con coherencia las tendencias principales y abre la puerta a futuras aplicaciones más finas, donde haya mayor densidad de datos o más variables auxiliares.
+
+En suma, este trabajo demuestra que la estadística funcional no es solo un marco elegante para tratar datos complejos —es una herramienta poderosa para leer la realidad de forma más continua, profunda y precisa. Ver las curvas no como puntos aislados, sino como trayectorias, nos permite entender que los fenómenos ambientales no son fijos ni discretos: se mueven, fluctúan y dialogan entre regiones y días, tal como lo hace el propio clima que nos rodea
