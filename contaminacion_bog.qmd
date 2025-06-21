@@ -38,19 +38,27 @@ Analizar la distribución espacio-temporal de los contaminantes PM2.5 y PM10 en 
 
 ### **Variables de interés (dependientes)**
 
--   **PM2.5**: está compuesto por partículas con un diámetro aerodinámico igual o menor a 2.5 micrómetros. Su origen principal es la combustión de vehículos, industrias y quema de biomasa. Contiene sustancias como sulfatos, nitratos, metales pesados y carbono negro. Estas partículas pueden penetrar profundamente en los pulmones y pasar al torrente sanguíneo, provocando enfermedades respiratorias, cardiovasculares e incluso efectos neurológicos. Además, contribuyen a la formación de smog y disminución de visibilidad. Se mide en microgramos por metro cúbico $(\mu g/m^3)$, y la OMS establece límites estrictos por su alta peligrosidad.
+-   **PM2.5**: está compuesto por partículas con un diámetro aerodinámico igual o menor a 2.5 micrómetros. Su origen principal es la combustión de vehículos, industrias y quema de biomasa. Contiene sustancias como sulfatos, nitratos, metales pesados y carbono negro. Estas partículas pueden penetrar profundamente en los pulmones y pasar al torrente sanguíneo, provocando enfermedades respiratorias, cardiovasculares e incluso efectos neurológicos. Además, contribuyen a la formación de smog y disminución de visibilidad. Se mide en microgramos por metro cúbico $(\mu g/m^3)$ y la OMS establece límites estrictos por su alta peligrosidad.
 
--   **PM10**: incluye todas las partículas con un diámetro igual o menor a 10 micrómetros, por lo que abarca también el PM2.5. Su composición incluye polvo, polen, moho, cenizas y partículas de combustión. Proviene de fuentes naturales (como el polvo del suelo) y antrópicas (construcciones, vehículos). Aunque sus partículas son más grandes, pueden alojarse en las vías respiratorias superiores y causar irritación, tos o crisis asmáticas. También afectan la calidad del aire, deterioran estructuras y ecosistemas. Al igual que el PM2.5, se mide en $(\mu g/m^3)$ y es regulado por organismos de salud y medio ambiente\*\*.
+-   **PM10**: incluye todas las partículas con un diámetro igual o menor a 10 micrómetros, por lo que abarca también el PM2.5. Su composición incluye polvo, polen, moho, cenizas y partículas de combustión. Proviene de fuentes naturales (como el polvo del suelo) y antrópicas (construcciones, vehículos). Aunque sus partículas son más grandes, pueden alojarse en las vías respiratorias superiores y causar irritación, tos o crisis asmáticas. También afectan la calidad del aire, deterioran estructuras y ecosistemas. Al igual que el PM2.5, se mide en $(\mu g/m^3)$ y es regulado por organismos de salud y medio ambiente.
 
 ### **Variables explicativas (independientes)**
 
--   **Latitud** y **Longitud** de las estaciones (ubicación geográfica).
+-   **Coordenadas** (este y norte en metros) de las estaciones.
 
 -   **Año** (dimensión temporal).
 
 ## **Análisis inicial de PM2.5**
 
-El análisis se centrará en un momento específico del tiempo: el año 2022. Para dicho periodo, se dispone de un promedio anual ponderado por estación, correspondiente a las observaciones registradas a lo largo del año. En total, se cuenta con 20 estaciones de monitoreo ubicadas en la ciudad de Bogotá, cada una de las cuales proporciona una observación espacial que representa el valor promedio anual de PM2.5 para su respectiva localización.
+# ANÁLISIS ESPACIAL DEL PM2.5
+
+Este análisis se centra en el año 2022, periodo durante el cual se calcularon los promedios anuales de PM2.5 para cada estación de monitoreo en la ciudad de Bogotá. En total, se dispone de 20 estaciones, cada una proporcionando un valor representativo del promedio anual del contaminante, con base en observaciones diarias acumuladas durante el año.
+
+Sin embargo, se identificó que la estación Carvajal–Sevillana presentó una representatividad temporal extremadamente baja, cercana al 16\%, debido a que solo se registraron alrededor de 60 observaciones válidas en todo el año. En contraste, otras estaciones superaron las 220 observaciones, manteniendo representatividades superiores al 75\%.
+
+De acuerdo con el Informe Anual de Calidad del Aire de Bogotá 2022, esta deficiencia se debió a una serie de inconvenientes técnicos y logísticos. Durante los primeros meses del año (enero a mayo), no fue posible acceder a la estación por falta de permisos, lo que impidió el reemplazo oportuno de la cinta filtro y provocó fallas en los equipos de medición de diversos contaminantes. Posteriormente, en julio se detectaron fallas en el sistema de aire acondicionado, y para septiembre este quedó fuera de servicio por completo, invalidando las mediciones desde ese momento (Secretaría Distrital de Ambiente, 2023).
+
+Dadas estas circunstancias, y con el fin de mantener la solidez del análisis geoestadístico, se decidió excluir la estación Carvajal–Sevillana del conjunto de datos, ya que su inclusión podría introducir sesgos significativos y afectar la validez del modelo espacial.
 
 Este conjunto de datos permite una primera aproximación descriptiva y espacial del comportamiento del contaminante en la ciudad durante el año de estudio, sirviendo como base para los análisis geoestadísticos posteriores.
 
@@ -58,8 +66,10 @@ Este conjunto de datos permite una primera aproximación descriptiva y espacial 
 #| echo: false
 #| message: false
 #| warning: false
+#| results: false
 
-lista_librerías<-c("readr","sqldf","tidyr","tidyverse","ggplot2","patchwork","sp","fields","geoR","akima","shiny","gstat", "sf", "dplyr", "knitr", "raster", "scales") 
+
+lista_librerías<-c("readr","sqldf","tidyr","tidyverse","ggplot2","patchwork","sp","fields","geoR","akima","shiny","gstat", "sf", "dplyr", "knitr", "raster", "scales", "reshape2", "broom") 
 
 
 no_installs <- lista_librerías[!lista_librerías %in% installed.packages()]
@@ -114,34 +124,45 @@ PM2_5 <- PM2_5 %>%
 
 ### Visualización espacial de las estaciones de monitoreo
 
-A continuación, se presenta un mapa que muestra la ubicación geográfica de las 20 estaciones de monitoreo de calidad del aire en Bogotá, utilizadas para el análisis del promedio anual de PM2.5 en el año 2022. Cada punto en el mapa representa una estación, y se han incorporado tanto el color como el tamaño del punto para facilitar la interpretación visual.
+A continuación, se presenta un mapa que muestra la ubicación geográfica de las 19 estaciones de monitoreo de calidad del aire en Bogotá, utilizadas para el análisis del promedio anual de PM2.5 correspondiente al año 2022. Cada punto en el mapa representa una estación, y se ha utilizado tanto el color como el tamaño del punto para facilitar la interpretación visual de los datos.
 
-El color del punto indica el nivel de concentración de PM2.5: una escala de tonalidades que va desde el azul (valores bajos), pasando por el morado (valores intermedios), hasta el rojo (valores altos). Por su parte, el tamaño del punto refleja la cantidad de observaciones registradas durante el año en cada estación: puntos más pequeños corresponden a estaciones con menos datos, mientras que puntos más grandes indican estaciones con una mayor cantidad de mediciones.
+La escala de colores indica el nivel de concentración de PM2.5 registrado por cada estación: los tonos azules corresponden a valores bajos, los morados a niveles intermedios, y los rojos a concentraciones más elevadas del contaminante. En cuanto al tamaño de los puntos, este representa la cantidad de observaciones válidas recolectadas en el año: puntos más pequeños reflejan estaciones con menor número de datos, mientras que los más grandes indican una mayor cobertura temporal.
 
 ```{r}
 #| echo: false
 #| message: false
 #| warning: false
-colom_shp <- st_read("mapa/loca.shp")    # Localidades de Bogotá
+#| results: false
+
+colom_shp <- suppressMessages(st_read("mapa/loca.shp"))  # Ocultar mensajes de st_read
 colom_shp <- st_transform(colom_shp[-9,], crs = "+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs")
 
-# Para PM2.5
 PM2_5_sf <- st_as_sf(PM2_5, coords = c("este", "norte"), crs = CRS_UTM_CO)
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
 
 ggplot() +
   geom_sf(data = colom_shp, fill = "white", color = "black") +
   geom_sf(data = PM2_5_sf, aes(color = PM2.5, size = TotDat), alpha = 0.8) +
   scale_color_gradient(name = "PM2.5 (µg/m³)", low = "blue", high = "red") +
   labs(title = "Mapa de estaciones PM2.5 - Bogotá",
-       subtitle = "Promedios ponderados con cantidad de datos como tamaño") +
-  theme_minimal()
-
+       subtitle = "Promedios con cantidad de datos como tamaño") +
+  theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank())
 
 ```
+En términos generales, la mayoría de estaciones presentan valores intermedios de PM2.5 (tonos morados), con una cobertura de entre 320 y 360 observaciones anuales, lo que garantiza una buena representatividad temporal. Sin embargo, existen algunas excepciones notables: la estación Colina, ubicada al norte de la ciudad, muestra una concentración particularmente baja de PM2.5 (zona azul), mientras que la estación Mochuelo, en el extremo sur, registra los niveles más altos (zona roja).
 
-En general, se observa que la mayoría de estaciones presentan valores intermedios de PM2.5 (tonos morados) y una buena cantidad de registros, con un total aproximado de 8.000 observaciones en todo el conjunto de datos. No obstante, se destacan algunos casos particulares: una estación ubicada hacia el norte de la ciudad muestra un valor especialmente bajo de PM2.5 (color azul), mientras que otra estación presenta un valor excepcionalmente alto (color rojo), aunque con pocas observaciones disponibles.
+Además, se evidencia un gradiente espacial de contaminación que va desde el oriente hacia el occidente de la ciudad. Las estaciones ubicadas en el este, generalmente en zonas más elevadas, presentan concentraciones más bajas (tonos azulados o morados suaves), mientras que en el suroccidente, donde predominan zonas industriales y áreas con menor cobertura vegetal, se observan niveles más altos de PM2.5 (tonos rojizos o rosados).
 
-Es importante señalar que algunas zonas del mapa aparecen sin estaciones de monitoreo, ya que estas corresponden a localidades donde no se realizaron mediciones, motivo por el cual dichas áreas no cuentan con datos representados en esta visualización.
+Esta distribución sugiere que factores como la actividad industrial, la densidad vehicular y la topografía podrían estar influyendo en la dispersión del contaminante.
 
 ### Exploración de la relación entre PM2.5 y las coordenadas espaciales
 
@@ -162,58 +183,70 @@ p2 <- ggplot(PM2_5, aes(x = norte, y = PM2.5)) +
 (p1 + p2)
 ```
 
-En el gráfico correspondiente a la coordenada Este, se observa una posible tendencia decreciente de tipo lineal: a medida que aumenta la coordenada este, los valores de PM2.5 tienden a disminuir. Esto sugiere la existencia de un patrón espacial en dirección este-oeste. Por otro lado, el gráfico que relaciona PM2.5 con la coordenada Norte no muestra una tendencia clara ni un comportamiento sistemático, lo que indicaría una menor influencia de esta dimensión espacial sobre la variabilidad del contaminante.
+En el gráfico correspondiente a la coordenada Este, se observa una posible tendencia decreciente de tipo lineal: a medida que aumenta la coordenada este, los valores de PM2.5 tienden a disminuir (tal y como se había percibido con anterioridad). Esto sugiere la existencia de un patrón espacial en dirección este-oeste. Por otro lado, el gráfico que relaciona PM2.5 con la coordenada Norte no muestra una tendencia clara ni un comportamiento sistemático, lo que indicaría una menor influencia de esta dimensión espacial sobre la variabilidad del contaminante.
 
-Además, en ambos gráficos se identifican posibles valores atípicos, representados por dos observaciones con niveles notablemente altos de PM2.5. Estos puntos podrían influir en el ajuste de modelos posteriores y deben ser tenidos en cuenta en el análisis.
+Además, en ambos gráficos se identifica un posible valor atípico, representado por una observación con niveles notablemente altos de PM2.5. Este punto podría influir en el ajuste de modelos posteriores y debe ser tenido en cuenta en el análisis.
 
-En conjunto, estos resultados preliminares sugieren que podría ser apropiado considerar un modelo lineal simple que incorpore únicamente la coordenada Este para capturar la tendencia espacial de los datos, al menos en una primera aproximación.
+En conjunto, estos resultados preliminares sugieren que, como una primera aproximación, podría ser adecuado utilizar un modelo lineal con un término cuadrático que incluya únicamente la coordenada Este, con el fin de capturar la tendencia espacial observada en los datos.
 
 #### Análisis de correlación entre PM2.5 y las coordenadas espaciales
 
 Con el objetivo de respaldar cuantitativamente las observaciones realizadas en los gráficos anteriores, se procedió a calcular la matriz de correlación entre las variables PM2.5, Este y Norte. Aunque la relación entre las coordenadas Este y Norte no es de interés en este contexto, nos enfocamos particularmente en las correlaciones de PM2.5 con cada una de las coordenadas espaciales por separado.
 
+
 ```{r}
 #| echo: false
+
 c <- cor(PM2_5[, c("este", "norte", "PM2.5")])
-knitr::kable(c, caption = "Matriz de Correlación")
+
+# Convertir a formato largo para ggplot
+c_melt <- melt(c)
+
+# Gráfico
+ggplot(c_melt, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(value, 2)), color = "black", size = 4) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0, limits = c(-1, 1), 
+                       name = "Correlación") +
+  theme_minimal() +
+  labs(title = "Matriz de Correlación PM2.5", x = NULL, y = NULL) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-Los resultados muestran que la correlación entre PM2.5 y la coordenada Este es de aproximadamente -0.67, lo que indica una fuerte relación inversa: a medida que se avanza hacia el este de la ciudad, los valores de PM2.5 tienden a disminuir. Por su parte, la correlación entre PM2.5 y la coordenada Norte es más débil, con un valor cercano a -0.43, lo cual sugiere una tendencia decreciente más tenue o posiblemente poco significativa.
-
-```{r}
-#| echo: false
-heatmap(c, 
-        col = colorRampPalette(c("blue", "lightblue", "white" ,"red", "darkred"))(10), 
-        symm = T, 
-        main = "Matriz de Correlación PM2.5", 
-        margins = c(6, 6))
-```
-
-Estos resultados se visualizan mediante un mapa de calor de la matriz de correlaciones, donde se utiliza una escala de color que va desde el azul oscuro (para relaciones negativas fuertes) hasta el rojo oscuro (para relaciones positivas fuertes). En el gráfico, se aprecia claramente que la celda correspondiente a la relación entre PM2.5 y la coordenada Este se tiñe de azul oscuro, lo cual refuerza la interpretación de una asociación negativa importante. En cambio, la celda que representa la correlación con la coordenada Norte presenta un tono azul más claro, reflejando una relación más débil.
+Los resultados muestran una correlación de aproximadamente -0.73 entre PM2.5 y la coordenada Este, lo que indica una fuerte relación inversa: a medida que se avanza hacia el este de la ciudad, los niveles de PM2.5 tienden a disminuir. En contraste, la correlación con la coordenada Norte es más débil, cercana a -0.46, lo que sugiere una tendencia decreciente menos marcada. Esta diferencia también se refleja en el mapa de calor de la matriz de correlaciones, donde la relación con la coordenada Este aparece en azul oscuro, indicando una asociación negativa fuerte, mientras que la relación con la coordenada Norte se muestra en un tono azul más claro.
 
 ### Ajuste del modelo de tendencia mediante regresión ponderada
 
-Con base en la evidencia obtenida a partir de los gráficos de dispersión y el análisis de correlación, se procedió a ajustar un modelo de regresión lineal ponderado con el fin de extraer la tendencia espacial del contaminante PM2.5. En este caso, se utilizaron como ponderaciones el total de observaciones realizadas en cada estación de monitoreo, dado que los valores de PM2.5 corresponden a promedios ponderados, y por lo tanto, las estaciones con mayor cantidad de datos tienen mayor peso en el análisis.
+Con base en la evidencia obtenida a partir de los gráficos de dispersión y el análisis de correlación, se procedió a ajustar un modelo de regresión lineal ponderado con el objetivo de extraer la tendencia espacial del contaminante PM2.5. En este caso, se utilizaron como ponderaciones el total de observaciones válidas registradas en cada estación de monitoreo, dado que los valores de PM2.5 corresponden a promedios ponderados. Por tanto, las estaciones con mayor cantidad de datos tienen un mayor peso en el análisis.
 
-Durante el proceso de modelado se exploraron diversas especificaciones, incluyendo modelos con términos cuadráticos, interacciones y combinaciones de ambas coordenadas. Sin embargo, tras evaluar el desempeño de cada uno, se determinó que el modelo más adecuado —en términos de simplicidad, significancia estadística y comportamiento de los residuos— fue aquel que incluye únicamente la coordenada Este como variable explicativa:
+Durante el proceso de modelado, se exploraron diferentes especificaciones, incluyendo modelos con términos cuadráticos, interacciones y combinaciones de ambas coordenadas espaciales. No obstante, tras evaluar el desempeño de cada modelo, se determinó que el más adecuado para capturar la tendencia fue aquel que incluye únicamente la coordenada Este como variable explicativa, en sus términos lineal y cuadrático.
 
-$$PM 2.5 = \beta_0 +β_1⋅Este + \epsilon$$
+$$PM 2.5 = \beta_0 +\beta_1⋅Este + \beta_2⋅Este^2+ \epsilon$$
 
 ```{r}
 #| echo: false
 # MODELO PARA EXTRAER LA TENDENCIA, TENIENDO COMO PESO LOS TOTALES 
+
 fit1 <- lm(PM2.5 ~ este + I(este^2), data = PM2_5, weights = TotDat)
-summary(fit1)
+
+# Extraer y mostrar coeficientes
+tidy_fit <- tidy(fit1)
+kable(tidy_fit, digits = 4, caption = "Resumen del modelo lineal ponderado")
+
 ```
 
-Los resultados del modelo estimado son los siguientes:
+Los resultados del modelo lineal ponderado final se presentan a continuación:
 
--   Intercepto: $\hat{\beta_0}=412.6$, con un valor p = 0.0004
--   Pendiente: $\hat{\beta_1}=−0.0006596$, con un valor p = 0.0005
+- Intercepto: 13270.70
 
-Ambos coeficientes son estadísticamente significativos al 1%. La pendiente negativa confirma la tendencia decreciente de PM2.5 en dirección Este, como se había sugerido previamente. El coeficiente de determinación ajustado ($R^2$ ajustado) fue de 0.467, lo cual indica que aproximadamente un 47% de la variabilidad en los niveles de PM2.5 puede ser explicada por la ubicación este de las estaciones.
+- Coordenada Este: -0.0436
 
-Este modelo será utilizado para eliminar la tendencia y permitir un análisis más preciso de la estructura espacial residual en los pasos posteriores.
+- Cuadrado de la coordenada Este: 0.0000
+
+Se decidió conservar el término cuadrático de la coordenada Este en el modelo, ya que su inclusión permitió reducir el coeficiente de variación de las predicciones en comparación con la alternativa que solo consideraba el término lineal. Esto sugiere que, aunque el efecto cuadrático no sea significativo de forma individual, sí contribuye a una mejor representación de la tendencia espacial en el conjunto de datos.
+
+El modelo, ajustado utilizando ponderaciones según la cantidad de observaciones válidas por estación, será utilizado para remover la tendencia espacial del contaminante PM2.5. Este paso es necesario para enfocar los análisis posteriores en la estructura espacial de los residuos, sin que la tendencia interfiera en la estimación de la dependencia espacial propiamente dicha.
 
 ### Análisis gráfico de los residuos estandarizados
 
@@ -250,11 +283,11 @@ par(mfrow = c(1, 1))
 PM2_5$residuals <- res1
 ```
 
-En ambos gráficos de dispersión se observó un comportamiento razonablemente aleatorio, lo que sugiere que la tendencia ha sido correctamente eliminada. No obstante, en ambos casos se evidencian dos posibles datos atípicos por su magnitud. Esta observación se refuerza con el boxplot, el cual identifica al menos un valor extremo, consistente con lo visto en los otros gráficos.
+En ambos gráficos de dispersión se observó un comportamiento razonablemente aleatorio, lo que sugiere que la tendencia ha sido correctamente eliminada. No obstante, en ambos casos se evidencian un posible dato atípico por su magnitud. Esta observación se refuerza con el boxplot, el cual identifica al menos un valor extremo, consistente con lo visto en los otros gráficos.
 
 Aunque se utilizaron residuos estandarizados para facilitar la visualización y comparación, el análisis posterior se realizará con los residuos originales, ya que estos conservan la estructura espacial y magnitud real del error en la variable de interés.
 
-A pesar de la presencia de estos puntos atípicos, no se optó por eliminarlos, ya que forman parte del fenómeno real observado. En su lugar, se utilizarán posteriormente estimadores robustos del semivariograma, los cuales son menos sensibles a la presencia de valores extremos y permiten un análisis geoestadístico confiable sin distorsión significativa por dichos puntos.
+A pesar de la presencia de este punto atípico, no se optó por eliminarlos, ya que forman parte del fenómeno real observado. 
 
 #### Visualización espacial y distribución de los residuos
 
@@ -271,56 +304,61 @@ plot(pmgs, qt.col = c("purple",
                       "pink",
                       "green",
                       "yellow"))
-plot(pmgs, scatter3d = T)
-
 ```
 
-Se generaron tres tipos principales de gráficos de interés:
+Se generaron dos tipos principales de gráficos de interés:
 
 -   **Gráfico de cuantiles espaciales**: Este gráfico muestra la ubicación de los residuos en el plano espacial (coordenadas Este y Norte), codificados por colores según sus cuantiles. La mezcla de colores indica que los residuos están distribuidos espacialmente sin un patrón sistemático ni agrupamientos claros, lo que confirma que la tendencia principal fue efectivamente eliminada en el ajuste del modelo.
 
 -   **Gráficos de densidad**: Este gráfico permite visualizar que la mayor concentración de residuos está cerca de valores bajos, reforzando la idea de que los residuos están centrados alrededor de cero y que no existe una fuerte dependencia espacial no explicada.
 
-**Gráfico tridimensionales**: Este gráfico permite observar la distribución de los residuos considerando simultáneamente las coordenadas Este, Norte y el valor del residuo (eje vertical). En estos gráficos se confirma que la mayoría de los residuos se concentran en valores bajos, con pocos valores altos dispersos, lo que corresponde con los datos atípicos detectados anteriormente.
-
 En conjunto, estas visualizaciones apoyan la validez del modelo ajustado y justifican avanzar al análisis geoestadístico mediante la estimación del semivariograma, considerando que los residuos representan el componente espacial de interés.
 
 ### Estimación del semivariograma y uso de un estimador robusto
 
-En esta sección se procede a estimar el semivariograma empírico de los residuos estandarizados obtenidos del modelo de regresión ponderada previamente ajustado. Esta estimación tiene como objetivo analizar la dependencia espacial de los residuos, lo cual es esencial antes de aplicar cualquier modelo geoestadístico. Dado que los residuos presentaban valores atípicos, se plantea el uso de un estimador robusto del semivariograma, en lugar del estimador clásico.
+En esta sección se procede a estimar el semivariograma empírico de los residuos obtenidos del modelo de regresión ponderada previamente ajustado. Esta estimación tiene como objetivo analizar la dependencia espacial de los residuos, lo cual es esencial antes de aplicar cualquier modelo geoestadístico. Se plantea el uso de el estimador clásico del semivariograma.
 
 #### Semivariograma clásico
 
-Como primer paso, se calculó el semivariograma empírico utilizando el estimador clásico definido como:
+Se calculó el semivariograma empírico utilizando el estimador clásico definido como:
 
 $$
 \hat{\gamma}(h) = \frac{1}{2N(h)} \sum_{i=1}^{N(h)} \left[ Z(s_i + h) - Z(s_i) \right]^2
-$$ donde N(h) representa el número de pares de puntos separados por una distancia aproximadamente igual a h, y Z(s) representa el valor del proceso en la ubicación s.
+$$
+donde N(h) representa el número de pares de puntos separados por una distancia aproximadamente igual a h, y Z(s) representa el valor del proceso en la ubicación s.
 
-Para garantizar la fiabilidad estadística de las estimaciones, se consideraron únicamente aquellos rezagos h donde se cumpliera que N(h)\>6. Esto se hace para asegurar que el número de pares sea suficiente para obtener un promedio representativo en cada distancia, evitando valores extremadamente inestables o influenciados por unos pocos datos, lo cual es especialmente importante en rezagos donde los datos están dispersos o hay menor cobertura espacial.
+Para garantizar la fiabilidad estadística de las estimaciones, se consideraron únicamente aquellos rezagos h donde se cumpliera que N(h)\>5. Esto se hace para asegurar que el número de pares sea suficiente para obtener un promedio representativo en cada distancia, evitando valores extremadamente inestables o influenciados por unos pocos datos, lo cual es especialmente importante en rezagos donde los datos están dispersos o hay menor cobertura espacial.
 
 ```{r}
 #| echo: false
+#| results: false
+
 # Variograma empírico para los residuales usando el estimador clásico
 vari1 <- variog(pmgs, trend = "cte", estimator.type = "classical", bin.cloud = T, pairs.min = 5, max.dist = 20000)
 
+```
+```{r}
+#| echo: false
 # Graficar el variograma
 plot(vari1)
 title(main = "Variograma Empírico - Estimador Clásico\n(PM2.5 - Residuales)", cex.main = 1.2)
 ```
+Al graficar el semivariograma empírico de los residuos del modelo ajustado para PM2.5, utilizando el estimador clásico de semivarianza, se observa un comportamiento creciente en los primeros rezagos de separación, seguido de una estabilización progresiva alrededor de los 7500 metros. Este patrón sugiere que existe correlación espacial positiva a distancias cortas, pero que dicha correlación se disipa a partir de esa distancia, es decir, las observaciones dejan de estar espacialmente relacionadas una vez superado ese umbral. Este comportamiento es coherente con la interpretación habitual del semivariograma, donde el punto de estabilización (alcance) indica la distancia a partir de la cual las mediciones son prácticamente independientes.
 
-El semivariograma estimado con este método mostró un valor atípicamente alto en el segundo rezago, lo cual ya sugería la posible influencia de valores extremos en la estimación. Para examinar esta situación, se construyeron boxplots para las diferencias al cuadrado espaciales en cada uno de los 10 rezagos. Los boxplots revelaron la presencia sistemática de valores atípicos en múltiples distancias, confirmando que el uso del estimador clásico podía estar sesgado.
+La forma creciente inicial, seguida por una meseta, sugiere que podrían ajustarse adecuadamente modelos teóricos como el exponencial, gaussiano, esférico o matern, los cuales reflejan estructuras de dependencia espacial que se debilitan progresivamente. Además, la ligera curvatura observada en los primeros lags podría justificar la consideración de un modelo tipo wave, aunque su elección dependerá de la calidad del ajuste y la naturaleza de los residuos.
 
 ### Ajuste de modelos teóricos al semivariograma empírico
 
-Después de estimar el semivariograma empírico usando el estimador robusto basado en la mediana, se procedió a ajustar distintos modelos teóricos con el fin de representar adecuadamente la dependencia espacial presente en los datos.
+Después de estimar el semivariograma empírico utilizando el estimador clásico de semivarianza, se procedió al ajuste de cinco modelos teóricos con el propósito de capturar adecuadamente la estructura de dependencia espacial presente en los residuos del modelo ajustado para PM2.5.
 
-Para este proceso se utilizó primero una herramienta llamada eyefit, que permite hacer un ajuste visual inicial de diferentes modelos teóricos al semivariograma empírico. Con esta función interactiva se fue probando distintas combinaciones de parámetros, tanto para modelos del tipo Wave como exponencial, observando visualmente cuáles se aproximaban mejor a la forma del semivariograma. Con base en esto, se seleccionó tres modelos que mostraban un comportamiento razonable frente a los datos empíricos: dos modelos Wave (uno con pepita fija y otro con pepita libre), y un modelo exponencial con pepita libre.
+Como primer paso, se utilizó la herramienta interactiva eyefit, que permitió realizar un ajuste visual de distintos modelos teóricos al semivariograma empírico. A partir de esta exploración, se seleccionaron cinco estructuras comunes en geoestadística: esférico, exponencial, gaussiano, matern y wave, todas consideradas bajo el supuesto de pepita fija. Los valores iniciales de los parámetros para cada modelo se tomaron directamente del ajuste visual proporcionado por eyefit.
 
-Los valores iniciales de los parámetros para cada modelo se tomaron de ese ajuste visual. Luego, con esos valores, se hizo el ajuste formal mediante una función que permite optimizar los parámetros para que el modelo se adapte lo mejor posible al semivariograma empírico, en este caso ponderando según el número de pares de observaciones en cada rezago. Para uno de los modelos Wave se dejó la pepita fija en 1.72; mientras que en los otros dos modelos se permitió que la pepita se ajustara libremente.
+Con estos valores iniciales, se llevó a cabo el ajuste formal de cada modelo mediante un proceso de optimización, ponderando los errores según el número de pares de observaciones disponibles en cada rezago. Esto permitió obtener una versión ajustada de cada modelo teórico, los cuales serán comparados posteriormente para determinar cuál representa mejor la variabilidad espacial residual del contaminante.
 
 ```{r}
 #| echo: false
+#| results: false
+
 #eyefit(vari1)
 
 # Ajuste de semivariogramas con diferentes modelos y condiciones
@@ -366,6 +404,11 @@ fitvar5 <- variofit(vari1,
                     kappa = 1.35,
                     wei = "npairs")
 
+```
+
+```{r}
+#| echo: false
+
 # Gráfico del semivariograma empírico y modelos ajustados
 plot(vari1$u, vari1$v,
      xlab = "Distancia (h)",
@@ -395,8 +438,7 @@ legend("topleft",
        text.col = "black")
 
 ```
-
-Una vez realizados los ajustes, se graficaron los tres modelos teóricos junto al semivariograma empírico. Visualmente, los tres modelos parecen representar adecuadamente la estructura espacial de los datos. Todos capturan bien el incremento inicial de la semivarianza. Sin embargo, para decidir cuál de los modelos se ajusta mejor, se utilizará el criterio cuantitativo basado en el error cuadrático medio (RMSE), que permitirá comparar qué tan cerca está cada modelo de los valores empíricos en promedio.
+Una vez realizados los ajustes, se graficaron los cinco modelos teóricos junto al semivariograma empírico. Visualmente, los cinco modelos parecen representar adecuadamente la estructura espacial de los datos. Todos capturan bien el incremento inicial de la semivarianza. Sin embargo, para decidir cuál de los modelos se ajusta mejor, se utilizará el criterio cuantitativo basado en el error cuadrático medio (RMSE), que permitirá comparar qué tan cerca está cada modelo de los valores empíricos en promedio.
 
 Los resultados obtenidos para el RMSE de cada modelo fueron los siguientes:
 
@@ -432,13 +474,39 @@ rmse_comparacion <- c("Wave" = rmse1, "Espherical" = rmse2, "Gaussian" = rmse3, 
 knitr::kable(rmse_comparacion, col.names = c("Modelo", "RMSE"))
 ```
 
-A partir de estos valores, se observa que el modelo Wave con pepita fija presenta el menor RMSE, lo que indica que es el que mejor se ajusta al semivariograma empírico bajo este criterio. Aunque las diferencias no son tan grandes respecto al modelo Wave con pepita libre, sí marcan una ventaja que justifica seleccionarlo como el modelo final a utilizar en adelante para la representación de la estructura de dependencia espacial en los datos.
+A partir de estos valores, se observa que el modelo exponencial presenta el menor RMSE, lo que indica que es el que mejor se ajusta al semivariograma empírico bajo este criterio. 
+```{r}
+#| echo: false
+
+library(knitr)
+
+params <- data.frame(
+  Parámetro = c("Modelo", 
+                "Pepita (τ²)", 
+                "Silla parcial (σ²)", 
+                "Silla total (τ² + σ²)", 
+                "Rango (ϕ)", 
+                "Rango práctico (cor ≈ 0.05)"),
+  Valor = c("Exponencial",
+            0,
+            round(fitvar4$cov.pars[1], 4),
+            round(sum(fitvar4$cov.pars[1], 0), 4),
+            round(fitvar4$cov.pars[2], 2),
+            round(3 * fitvar4$cov.pars[2], 2))
+)
+
+kable(params, caption = "Resumen interpretado del ajuste de semivariograma")
+
+
+```
+El modelo de semivariograma que presentó el mejor ajuste fue el exponencial con pepita fija, con una silla total de 5.84 y un rango estimado de aproximadamente 4586.55 metros. Este rango representa la distancia a partir de la cual las observaciones espaciales comienzan a perder correlación de manera significativa. En el contexto urbano de Bogotá, este resultado sugiere que la influencia de las fuentes locales de emisión de PM2.5 —como zonas industriales, corredores viales o actividades residenciales— se extiende de forma efectiva en un radio de cerca de 4.5 kilómetros. Más allá de esta distancia, el comportamiento del contaminante tiende a volverse independiente entre estaciones.
+
 
 ```{r}
 #| echo: false
 # 1. Graficar el semivariograma empírico
 plot(vari1,
-     main = "Semivariograma empírico con modelo ajustado",
+     main = "Semivariograma empírico con modelo exponencial ajustado",
      xlab = "Distancia (h)",
      ylab = expression(gamma(h)))
 
@@ -450,6 +518,10 @@ lines.variomodel(fitvar4, col = "blue", lwd = 2)
 final_model <- fitvar4
 ```
 
+## KRIGING DEL PM2.5
+
+Una vez ajustado el modelo de semivariograma, se procedió a aplicar el método de kriging ordinario, con el objetivo de interpolar los valores residuales de PM2.5 en zonas no monitoreadas y así obtener una representación continua de la variabilidad espacial del contaminante en Bogotá. Para ello, se construyó una malla regular sobre el mapa de la ciudad, compuesta por celdas de 100 metros por 100 metros, tanto en dirección este-oeste como norte-sur. Esta malla sirve como base para estimar valores en ubicaciones intermedias entre las estaciones de monitoreo, permitiendo generar superficies suaves que reflejan los patrones espaciales inferidos a partir de los datos disponibles.
+
 ```{r}
 #| include: false
 
@@ -460,7 +532,10 @@ PM2_5_sf <- st_as_sf(PM2_5, coords = c("este", "norte"), crs = CRS_UTM_CO)
 PM2_5_sp <- as(PM2_5_sf, "Spatial")
 
 # Ajustar modelo de semivariograma
-final_model <- vgm(psill = 5.8421, model = "Exp", range = 4586.5462, nugget = 0)
+final_model <- vgm(psill = sum(fitvar4$cov.pars[1], 0),
+                   model = "Exp",
+                   range = fitvar4$cov.pars[2],
+                   nugget = 0)
 
 # Crear grilla usando límites del shapefile
 bbox_colom <- st_bbox(colom_shp) # Se obtienen los extremos del shapefile
@@ -475,10 +550,10 @@ proj4string(grilla) <- CRS(st_crs(colom_shp)$proj4string) #Le asigna el sistema 
 # Kriging
 kriging_result <- krige(residuals ~ 1, PM2_5_sp, grilla, model = final_model) #Predicción
 
-
-# Resumen
-summary(kriging_result@data$var1.pred)
-summary(kriging_result@data$var1.var)
+# 
+# # Resumen
+# summary(kriging_result@data$var1.pred)
+# summary(kriging_result@data$var1.var)
 ```
 
 ```{r}
@@ -508,7 +583,7 @@ kriging_df$PM25_estimado <- kriging_df$var1.pred + kriging_df$tendencia
 # 7. Graficar mapa final
 library(ggplot2)
 
-ggplot() +
+gr1 <- ggplot() +
   geom_raster(data = kriging_df, aes(x = x, y = y, fill = PM25_estimado)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradientn(
@@ -519,18 +594,27 @@ ggplot() +
   labs(
     title = "Mapa estimado de PM2.5",
     subtitle = "Tendencia lineal + Kriging de residuos",
-    caption = "Interpolación con modelo gaussiano"
+    caption = "Interpolación con modelo exponencial"
   ) +
   theme_minimal() +
   theme(
     legend.position = "right",
     axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
   ) +
   coord_sf()
+print(gr1)
 
 ```
+El mapa estimado de concentraciones anuales de PM2.5 en Bogotá, obtenido a partir del proceso de kriging, revela un patrón espacial claramente diferenciado a lo largo del territorio urbano. Los colores van desde el azul (valores más bajos) hasta el rojo (valores más altos), permitiendo una lectura visual intuitiva de la distribución del contaminante. Se observa que las zonas norte, nororiente y oriente de la ciudad presentan niveles considerablemente bajos, con valores promedio cercanos o incluso inferiores a los 15 microgramos por metro cúbico, destacándose un punto en el norte con valores aún más bajos. En contraste, conforme se avanza hacia el occidente y especialmente hacia el suroccidente, los niveles de PM2.5 aumentan progresivamente, alcanzando valores promedio cercanos a 30 microgramos por metro cúbico en los extremos occidentales de la ciudad.
+
+Este comportamiento puede estar relacionado con diversos factores urbanos y ambientales. En el oriente y nororiente predominan zonas residenciales de baja densidad, con mayor presencia de cobertura vegetal y menor carga vehicular, además de estar ubicadas en sectores de mayor altitud y mejor ventilación. Por el contrario, el occidente y suroccidente concentran una mayor presencia de actividad industrial, corredores viales de alto tráfico, y asentamientos densos, lo que favorece la acumulación de material particulado fino. Adicionalmente, la topografía inclinada hacia el occidente podría dificultar la dispersión de contaminantes en esas zonas.
+
+Desde una perspectiva de salud pública y gestión ambiental, estas estimaciones resaltan la necesidad de intervenciones focalizadas en el occidente de la ciudad, particularmente en localidades como Kennedy, Bosa, Fontibón y Puente Aranda, donde residen comunidades potencialmente más expuestas a concentraciones perjudiciales de PM2.5. Se recomienda priorizar estas zonas en estrategias de mitigación, como el control de fuentes móviles y fijas de emisión, la expansión de zonas verdes, y el monitoreo reforzado. Este tipo de análisis espacial puede apoyar la toma de decisiones basadas en evidencia para una planificación ambiental más equitativa y eficiente.
+
 
 ```{r}
 #| echo: false
@@ -545,7 +629,7 @@ kriging_var_df <- as.data.frame(kriging_var_masked, xy = TRUE)
 kriging_var_df <- na.omit(kriging_var_df)
 
 # 4. Mapa de la varianza (variabilidad del kriging)
-ggplot() +
+gr2 <- ggplot() +
   geom_raster(data = kriging_var_df, aes(x = x, y = y, fill = var1.var)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradientn(
@@ -555,24 +639,28 @@ ggplot() +
   ) +
   labs(
     title = "Mapa de incertidumbre del kriging",
-    subtitle = "Varianza de predicción espacial (PM2.5)",
-    caption = "Entre más oscuro, mayor incertidumbre"
+    subtitle = "Varianza de predicción espacial (PM2.5)"
   ) +
   theme_minimal() +
   theme(
     legend.position = "right",
     axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
   ) +
   coord_sf()
 
-
+print(gr2)
 
 ```
+Además del mapa estimado de concentraciones de PM2.5, se construyeron dos mapas complementarios que permiten evaluar la incertidumbre asociada a las predicciones del kriging: el mapa de la varianza de predicción y el mapa del coeficiente de variación (CV).
 
+El mapa de la varianza de predicción, con valores que oscilan entre 0 y 6, se representa mediante una escala de color que va desde el blanco (baja varianza) hasta el azul oscuro (alta varianza). Se observa claramente que las zonas con mayor densidad de estaciones de monitoreo —principalmente en el centro de la ciudad— presentan los niveles más bajos de incertidumbre, como es esperable, ya que las predicciones del kriging son más confiables en puntos cercanos a datos observados. En cambio, en zonas periféricas o más alejadas de las estaciones, especialmente en los extremos nororientales y surorientales, la varianza tiende a aumentar, reflejando mayor incertidumbre.
 ```{r}
 #| echo: false
+#| warning: false
 library(raster)
 library(ggplot2)
 
@@ -601,7 +689,7 @@ cv_df <- as.data.frame(cv_raster, xy = TRUE)
 cv_df <- na.omit(cv_df)
 
 # 6. Graficar coeficiente de variación (%)
-ggplot() +
+gr3 <- ggplot() +
   geom_raster(data = cv_df, aes(x = x, y = y, fill = layer)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradientn(
@@ -611,26 +699,87 @@ ggplot() +
   ) +
   labs(
     title = "Mapa del Coeficiente de Variación (CV) del Kriging",
-    subtitle = "Incertidumbre relativa de PM2.5",
-    caption = "CV = (Desv. estándar / Valor estimado) * 100"
+    subtitle = "Incertidumbre relativa de PM2.5"
   ) +
   theme_minimal() +
   theme(
     legend.position = "right",
     axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
   ) +
   coord_sf()
 
-
-a1 <- data.frame(PM25_estimado = kriging_df$PM25_estimado,
-                varianza = kriging_var_df$var1.var,
-                cv = sqrt(kriging_var_df$var1.var) / abs(kriging_df$PM25_estimado)*100)
+print(gr3)
+# a1 <- data.frame(PM25_estimado = kriging_df$PM25_estimado,
+#                 varianza = kriging_var_df$var1.var,
+#                 cv = sqrt(kriging_var_df$var1.var) / abs(kriging_df$PM25_estimado)*100)
 
 ```
+Por su parte, el mapa del coeficiente de variación presenta valores que van desde 0\% hasta aproximadamente 17\%, codificados en una escala de colores que va del amarillo claro al rojo oscuro. Este indicador estandariza la incertidumbre en relación con el valor predicho, y en general muestra niveles bajos o moderados, lo cual indica una buena estabilidad relativa en las estimaciones. Al igual que con la varianza, las zonas cercanas a estaciones de monitoreo presentan los valores más bajos de CV. Sin embargo, se evidencia un patrón creciente desde el occidente hacia el oriente, siendo la franja oriental de la ciudad —donde la cobertura de estaciones es menor— la región con mayor coeficiente de variación. Esto sugiere que, si bien las predicciones en estas zonas pueden seguir siendo útiles, deben interpretarse con mayor precaución debido a su mayor nivel de incertidumbre relativa.
 
-# PM10
+### Medidas de calidad asociadas 
+
+Finalmente, se calcularon tres medidas de calidad para evaluar el desempeño del modelo de kriging en la predicción del contaminante PM2.5: el Error Medio (ME) fue de aproximadamente -0.0574, indicando que, en promedio, el modelo no presenta sesgo significativo en sus estimaciones. El Error Absoluto Medio (MAE) fue de 2.3437, lo que sugiere que, en promedio, la desviación entre los valores predichos y observados es relativamente baja considerando que los niveles anuales de PM2.5 en Bogotá oscilan entre 15 y 30 microgramos por metro cúbico. Por su parte, la Raíz del Error Cuadrático Medio (RMSE) alcanzó un valor de 3.2826, lo cual refuerza la idea de que el modelo logra una buena aproximación general del comportamiento espacial del contaminante. En conjunto, estos resultados respaldan la utilidad del kriging como herramienta de interpolación en este contexto, permitiendo obtener estimaciones razonables en zonas no monitoreadas de la ciudad.
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+# 1. Ajustar modelo final del variograma
+final_model <- vgm(
+  psill = sum(fitvar4$cov.pars[1], 0),
+  model = "Exp",
+  range = fitvar4$cov.pars[2],
+  nugget = 0
+)
+
+# 2. Validación cruzada Leave-One-Out
+cv_result <- krige.cv(residuals ~ 1, 
+                      PM2_5_sp, 
+                      model = final_model,
+                      nfold = nrow(PM2_5_sp))  # LOO-CV
+
+# 3. Convertir a data.frame
+cv_df <- as.data.frame(cv_result)
+
+# 4. Calcular errores
+cv_df$error <- cv_df$observed - cv_df$var1.pred
+
+# 5. Métricas de desempeño
+ME   <- mean(cv_df$error)
+MAE  <- mean(abs(cv_df$error))
+RMSE <- sqrt(mean(cv_df$error^2))
+
+# 6. Tabla de errores principales
+errores <- data.frame(
+  Métrica = c("Error Medio (ME)", 
+              "Error Absoluto Medio (MAE)", 
+              "Raíz del Error Cuadrático Medio (RMSE)"),
+  Valor = round(c(ME, MAE, RMSE), 4)
+)
+
+k1 <- kable(errores, caption = "Resumen de medidas de calidad asociadas para el kriging de PM2.5")
+k1
+```
+
+## CONCLUSIÓN DEL ANÁLISIS ESPACIAL DE PM2.5
+
+Más allá de los aspectos técnicos, los resultados del análisis espacial permiten visibilizar desigualdades ambientales relevantes dentro del territorio urbano de Bogotá. El hecho de que las zonas occidentales y suroccidentales concentren los niveles más altos de PM2.5 no es un hallazgo menor: estas áreas corresponden a localidades densamente pobladas como Bosa, Kennedy y Fontibón, donde habitan cientos de miles de personas en condiciones que, muchas veces, combinan vulnerabilidad social con exposición ambiental. El patrón observado no es aleatorio; está vinculado con la presencia de fuentes de emisión intensas, como vías de alto tráfico, zonas industriales y procesos urbanos poco planificados.
+
+En contraste, los sectores del norte y nororiente, donde los niveles del contaminante son marcadamente más bajos, tienden a contar con mejores condiciones urbanas: mayor cobertura vegetal, menor densidad poblacional, mejores flujos de aire y menor concentración de fuentes contaminantes. Esto pone en evidencia que la exposición al riesgo ambiental no se distribuye equitativamente y que la calidad del aire, en muchos casos, se convierte en un indicador indirecto de desigualdad territorial.
+
+Por tanto, más allá del valor numérico, este análisis subraya la urgencia de intervenciones diferenciadas, que prioricen las zonas más afectadas. La planificación urbana, el transporte público limpio, la regulación industrial y la expansión de zonas verdes deben ser diseñados con un enfoque territorial justo, que reconozca que el derecho a respirar aire limpio también es una cuestión de equidad social.
+
+# ANÁLISIS ESPACIAL DEL PM10
+
+A continuación, se replica el análisis espacial aplicado previamente al contaminante PM2.5, pero esta vez enfocado en el material particulado PM10. Al igual que antes, se parte de los promedios anuales por estación de monitoreo correspondientes al año 2022, con la misma red de 19 estaciones distribuidas en la ciudad de Bogotá. El objetivo es identificar patrones espaciales en la concentración de PM10 y evaluar su comportamiento mediante técnicas de interpolación geoestadística.
+
+Dado que el procedimiento metodológico es el mismo —ajuste de tendencia, modelación de la dependencia espacial y aplicación de kriging ordinario—, en esta sección se resumirán los resultados principales, haciendo énfasis únicamente en aquellos aspectos que difieren de los hallazgos obtenidos con PM2.5, o que aportan información complementaria relevante para la comprensión de la calidad del aire en la ciudad.
 
 ```{r}
 #| include: false
@@ -670,10 +819,6 @@ PM10 <- PM10 %>%
 
 ### Visualización espacial de las estaciones de monitoreo
 
-A continuación, se presenta un mapa que muestra la ubicación geográfica de las 20 estaciones de monitoreo de calidad del aire en Bogotá, utilizadas para el análisis del promedio anual de PM2.5 en el año 2022. Cada punto en el mapa representa una estación, y se han incorporado tanto el color como el tamaño del punto para facilitar la interpretación visual.
-
-El color del punto indica el nivel de concentración de PM2.5: una escala de tonalidades que va desde el azul (valores bajos), pasando por el morado (valores intermedios), hasta el rojo (valores altos). Por su parte, el tamaño del punto refleja la cantidad de observaciones registradas durante el año en cada estación: puntos más pequeños corresponden a estaciones con menos datos, mientras que puntos más grandes indican estaciones con una mayor cantidad de mediciones.
-
 ```{r}
 #| echo: false
 #| message: false
@@ -688,18 +833,17 @@ ggplot() +
   scale_color_gradient(name = "PM10 (µg/m³)", low = "blue", high = "red") +
   labs(title = "Mapa de estaciones PM10 - Bogotá",
        subtitle = "Promedios con cantidad de datos como tamaño") +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank())
 
 
 ```
 
-En general, se observa que la mayoría de estaciones presentan valores intermedios de PM2.5 (tonos morados) y una buena cantidad de registros, con un total aproximado de 8.000 observaciones en todo el conjunto de datos. No obstante, se destacan algunos casos particulares: una estación ubicada hacia el norte de la ciudad muestra un valor especialmente bajo de PM2.5 (color azul), mientras que otra estación presenta un valor excepcionalmente alto (color rojo), aunque con pocas observaciones disponibles.
-
-Es importante señalar que algunas zonas del mapa aparecen sin estaciones de monitoreo, ya que estas corresponden a localidades donde no se realizaron mediciones, motivo por el cual dichas áreas no cuentan con datos representados en esta visualización.
+El mapa de estaciones de monitoreo para PM10 en el año 2022 muestra un patrón espacial similar al observado con PM2.5. Las zonas del norte y oriente de la ciudad presentan valores bajos del contaminante, representados con tonos azul oscuro, mientras que en el occidente, especialmente en el suroccidente, predominan tonos rosados y rojos, indicando mayores concentraciones. En cuanto al tamaño de los puntos, reflejo de la cantidad de datos registrados, la mayoría de estaciones cuenta con una buena densidad de observaciones, lo que aporta solidez al análisis posterior.
 
 ### Exploración de la relación entre PM2.5 y las coordenadas espaciales
-
-Con el fin de explorar la posible influencia de la ubicación geográfica sobre los niveles de PM2.5, se realizaron gráficos de dispersión que muestran el comportamiento de esta variable en función de las coordenadas espaciales: Este (X) y Norte (Y). Ambos gráficos se presentan de manera conjunta, con la relación PM2.5 vs Este a la izquierda y PM2.5 vs Norte a la derecha, lo que permite una comparación visual directa.
 
 ```{r}
 #| echo: false
@@ -716,62 +860,47 @@ p4 <- ggplot(PM10, aes(x = norte, y = PM10)) +
 (p3 + p4)
 ```
 
-En el gráfico correspondiente a la coordenada Este, se observa una posible tendencia decreciente de tipo lineal: a medida que aumenta la coordenada este, los valores de PM2.5 tienden a disminuir. Esto sugiere la existencia de un patrón espacial en dirección este-oeste. Por otro lado, el gráfico que relaciona PM2.5 con la coordenada Norte no muestra una tendencia clara ni un comportamiento sistemático, lo que indicaría una menor influencia de esta dimensión espacial sobre la variabilidad del contaminante.
-
-Además, en ambos gráficos se identifican posibles valores atípicos, representados por dos observaciones con niveles notablemente altos de PM2.5. Estos puntos podrían influir en el ajuste de modelos posteriores y deben ser tenidos en cuenta en el análisis.
-
-En conjunto, estos resultados preliminares sugieren que podría ser apropiado considerar un modelo lineal simple que incorpore únicamente la coordenada Este para capturar la tendencia espacial de los datos, al menos en una primera aproximación.
+Al analizar la relación entre PM10 y las coordenadas espaciales, se observa nuevamente un patrón decreciente claro en la dirección Este, lo cual sugiere una tendencia espacial similar a la del PM2.5. En contraste, respecto a la coordenada Norte, no se evidencia una relación aparente con los niveles del contaminante.
 
 #### Análisis de correlación entre PM2.5 y las coordenadas espaciales
-
-Con el objetivo de respaldar cuantitativamente las observaciones realizadas en los gráficos anteriores, se procedió a calcular la matriz de correlación entre las variables PM2.5, Este y Norte. Aunque la relación entre las coordenadas Este y Norte no es de interés en este contexto, nos enfocamos particularmente en las correlaciones de PM2.5 con cada una de las coordenadas espaciales por separado.
 
 ```{r}
 #| echo: false
 d <- cor(PM10[, c("este", "norte", "PM10")])
-knitr::kable(d, caption = "Matriz de Correlación")
+
+# Convertir a formato largo para ggplot
+d_melt <- melt(d)
+
+# Gráfico
+ggplot(d_melt, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(value, 2)), color = "black", size = 4) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0, limits = c(-1, 1), 
+                       name = "Correlación") +
+  theme_minimal() +
+  labs(title = "Matriz de Correlación PM10", x = NULL, y = NULL) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-Los resultados muestran que la correlación entre PM2.5 y la coordenada Este es de aproximadamente -0.67, lo que indica una fuerte relación inversa: a medida que se avanza hacia el este de la ciudad, los valores de PM2.5 tienden a disminuir. Por su parte, la correlación entre PM2.5 y la coordenada Norte es más débil, con un valor cercano a -0.43, lo cual sugiere una tendencia decreciente más tenue o posiblemente poco significativa.
-
-```{r}
-#| echo: false
-heatmap(d, 
-        col = colorRampPalette(c("blue", "lightblue", "white" ,"red", "darkred"))(10), 
-        symm = T, 
-        main = "Matriz de Correlación PM10", 
-        margins = c(6, 6))
-```
-
-Estos resultados se visualizan mediante un mapa de calor de la matriz de correlaciones, donde se utiliza una escala de color que va desde el azul oscuro (para relaciones negativas fuertes) hasta el rojo oscuro (para relaciones positivas fuertes). En el gráfico, se aprecia claramente que la celda correspondiente a la relación entre PM2.5 y la coordenada Este se tiñe de azul oscuro, lo cual refuerza la interpretación de una asociación negativa importante. En cambio, la celda que representa la correlación con la coordenada Norte presenta un tono azul más claro, reflejando una relación más débil.
+La matriz de correlaciones confirma lo observado en los gráficos previos: la variable PM10 presenta una fuerte correlación negativa con la coordenada Este (−0.85), lo que refuerza la presencia de una tendencia espacial decreciente en esa dirección. En cambio, su relación con la coordenada Norte es mucho más débil (−0.30), sin un patrón claro de variación.
 
 ### Ajuste del modelo de tendencia mediante regresión ponderada
-
-Con base en la evidencia obtenida a partir de los gráficos de dispersión y el análisis de correlación, se procedió a ajustar un modelo de regresión lineal ponderado con el fin de extraer la tendencia espacial del contaminante PM2.5. En este caso, se utilizaron como ponderaciones el total de observaciones realizadas en cada estación de monitoreo, dado que los valores de PM2.5 corresponden a promedios ponderados, y por lo tanto, las estaciones con mayor cantidad de datos tienen mayor peso en el análisis.
-
-Durante el proceso de modelado se exploraron diversas especificaciones, incluyendo modelos con términos cuadráticos, interacciones y combinaciones de ambas coordenadas. Sin embargo, tras evaluar el desempeño de cada uno, se determinó que el modelo más adecuado —en términos de simplicidad, significancia estadística y comportamiento de los residuos— fue aquel que incluye únicamente la coordenada Este como variable explicativa:
-
-$$PM 2.5 = \beta_0 +β_1⋅Este + \epsilon$$
 
 ```{r}
 #| echo: false
 # MODELO PARA EXTRAER LA TENDENCIA, TENIENDO COMO PESO LOS TOTALES 
 fit2 <- lm(PM10 ~ este + I(este^2), data = PM10, weights = TotDat)
-summary(fit2)
+
+# Extraer y mostrar coeficientes
+tidy_fit <- tidy(fit2)
+kable(tidy_fit, digits = 4, caption = "Resumen del modelo lineal ponderado")
 ```
-
-Los resultados del modelo estimado son los siguientes:
-
--   Intercepto: $\hat{\beta_0}=412.6$, con un valor p = 0.0004
--   Pendiente: $\hat{\beta_1}=−0.0006596$, con un valor p = 0.0005
-
-Ambos coeficientes son estadísticamente significativos al 1%. La pendiente negativa confirma la tendencia decreciente de PM2.5 en dirección Este, como se había sugerido previamente. El coeficiente de determinación ajustado ($R^2$ ajustado) fue de 0.467, lo cual indica que aproximadamente un 47% de la variabilidad en los niveles de PM2.5 puede ser explicada por la ubicación este de las estaciones.
-
-Este modelo será utilizado para eliminar la tendencia y permitir un análisis más preciso de la estructura espacial residual en los pasos posteriores.
+De manera similar al caso del PM2.5, se ajustó un modelo lineal ponderado utilizando la coordenada Este y su término cuadrático como variables explicativas, con el fin de extraer la tendencia espacial del PM10. Aunque los coeficientes no resultaron estadísticamente significativos, se optó por conservar el término cuadrático, ya que su inclusión permitió reducir el coeficiente de variación de las predicciones en etapas posteriores del análisis.
 
 ### Análisis gráfico de los residuos estandarizados
 
-Una vez ajustado el modelo de tendencia, se procedió a evaluar el comportamiento de los residuos estandarizados con el fin de identificar posibles patrones espaciales residuales o la presencia de datos atípicos. Para ello, se realizaron gráficos de dispersión de los residuos estandarizados tanto frente a la coordenada Este como a la coordenada Norte, así como un diagrama de caja (boxplot).
+Al analizar los residuales estandarizados respecto a las coordenadas Este y Norte, se observa una distribución bastante homogénea, sin patrones espaciales evidentes, lo cual indica que la tendencia fue extraída de forma adecuada. El boxplot de los residuales muestra una dispersión centrada en cero. Y solo se observa un único valor atípico, que no afecta el análisis, ya que puede considerarse parte natural de la variabilidad de los datos ambientales.
 
 ```{r}
 #| echo: false
@@ -804,15 +933,7 @@ par(mfrow = c(1, 1))
 PM10$residuals <- res2
 ```
 
-En ambos gráficos de dispersión se observó un comportamiento razonablemente aleatorio, lo que sugiere que la tendencia ha sido correctamente eliminada. No obstante, en ambos casos se evidencian dos posibles datos atípicos por su magnitud. Esta observación se refuerza con el boxplot, el cual identifica al menos un valor extremo, consistente con lo visto en los otros gráficos.
 
-Aunque se utilizaron residuos estandarizados para facilitar la visualización y comparación, el análisis posterior se realizará con los residuos originales, ya que estos conservan la estructura espacial y magnitud real del error en la variable de interés.
-
-A pesar de la presencia de estos puntos atípicos, no se optó por eliminarlos, ya que forman parte del fenómeno real observado. En su lugar, se utilizarán posteriormente estimadores robustos del semivariograma, los cuales son menos sensibles a la presencia de valores extremos y permiten un análisis geoestadístico confiable sin distorsión significativa por dichos puntos.
-
-#### Visualización espacial y distribución de los residuos
-
-Para complementar el análisis de los residuos, se realizó una exploración gráfica empleando funciones del paquete geoestadístico que permiten visualizar la distribución de los residuos en el espacio, así como su comportamiento multivariado.
 
 ```{r}
 #| echo: false
@@ -820,63 +941,45 @@ Para complementar el análisis de los residuos, se realizó una exploración gr�
 pmgs2 <- as.geodata(PM10, coords.col = 1:2, data.col = 6, covar.col = 5)
 #summary(pmgs)
 
-# Gráficos de la geodata
-plot(pmgs2, qt.col = c("purple",
-                      "pink",
-                      "green",
-                      "yellow"))
-plot(pmgs2, scatter3d = T)
-
+# # Gráficos de la geodata
+# plot(pmgs2, qt.col = c("purple",
+#                       "pink",
+#                       "green",
+#                       "yellow"))
 ```
 
-Se generaron tres tipos principales de gráficos de interés:
 
--   **Gráfico de cuantiles espaciales**: Este gráfico muestra la ubicación de los residuos en el plano espacial (coordenadas Este y Norte), codificados por colores según sus cuantiles. La mezcla de colores indica que los residuos están distribuidos espacialmente sin un patrón sistemático ni agrupamientos claros, lo que confirma que la tendencia principal fue efectivamente eliminada en el ajuste del modelo.
+## Estimación del semivariograma
 
--   **Gráficos de densidad**: Este gráfico permite visualizar que la mayor concentración de residuos está cerca de valores bajos, reforzando la idea de que los residuos están centrados alrededor de cero y que no existe una fuerte dependencia espacial no explicada.
 
-**Gráfico tridimensionales**: Este gráfico permite observar la distribución de los residuos considerando simultáneamente las coordenadas Este, Norte y el valor del residuo (eje vertical). En estos gráficos se confirma que la mayoría de los residuos se concentran en valores bajos, con pocos valores altos dispersos, lo que corresponde con los datos atípicos detectados anteriormente.
-
-En conjunto, estas visualizaciones apoyan la validez del modelo ajustado y justifican avanzar al análisis geoestadístico mediante la estimación del semivariograma, considerando que los residuos representan el componente espacial de interés.
-
-### Estimación del semivariograma y uso de un estimador robusto
-
-En esta sección se procede a estimar el semivariograma empírico de los residuos estandarizados obtenidos del modelo de regresión ponderada previamente ajustado. Esta estimación tiene como objetivo analizar la dependencia espacial de los residuos, lo cual es esencial antes de aplicar cualquier modelo geoestadístico. Dado que los residuos presentaban valores atípicos, se plantea el uso de un estimador robusto del semivariograma, en lugar del estimador clásico.
 
 #### Semivariograma clásico
 
-Como primer paso, se calculó el semivariograma empírico utilizando el estimador clásico definido como:
 
-$$
-\hat{\gamma}(h) = \frac{1}{2N(h)} \sum_{i=1}^{N(h)} \left[ Z(s_i + h) - Z(s_i) \right]^2
-$$
-
-donde N(h) representa el número de pares de puntos separados por una distancia aproximadamente igual a h, y Z(s) representa el valor del proceso en la ubicación s.
-
-Para garantizar la fiabilidad estadística de las estimaciones, se consideraron únicamente aquellos rezagos h donde se cumpliera que N(h)\>6. Esto se hace para asegurar que el número de pares sea suficiente para obtener un promedio representativo en cada distancia, evitando valores extremadamente inestables o influenciados por unos pocos datos, lo cual es especialmente importante en rezagos donde los datos están dispersos o hay menor cobertura espacial.
 
 ```{r}
 #| echo: false
+#| results: false
+
 # Variograma empírico para los residuales usando el estimador clásico
 vari2 <- variog(pmgs2, trend = "cte", estimator.type = "classical", bin.cloud = T, pairs.min = 5, max.dist = 25000)
+
+```
+```{r}
+#| echo: false
 
 # Graficar el variograma
 plot(vari2)
 title(main = "Variograma Empírico - Estimador Clásico\n(PM10 - Residuales)", cex.main = 1.2)
 ```
-
-El semivariograma estimado con este método mostró un valor atípicamente alto en el segundo rezago, lo cual ya sugería la posible influencia de valores extremos en la estimación. Para examinar esta situación, se construyeron boxplots para las diferencias al cuadrado espaciales en cada uno de los 10 rezagos. Los boxplots revelaron la presencia sistemática de valores atípicos en múltiples distancias, confirmando que el uso del estimador clásico podía estar sesgado.
+El semivariograma empírico de los residuales del PM10 muestra valores iniciales elevados, y algunos de los primeros rezagos no se visualizan por no contar con suficientes pares de observaciones. A partir de una distancia cercana a los 7000 metros, el semivariograma comienza a estabilizarse, lo que sugiere que a partir de ese punto se pierde la correlación espacial entre los residuales, indicando un rango de dependencia espacial moderado.
 
 ### Ajuste de modelos teóricos al semivariograma empírico
 
-Después de estimar el semivariograma empírico usando el estimador robusto basado en la mediana, se procedió a ajustar distintos modelos teóricos con el fin de representar adecuadamente la dependencia espacial presente en los datos.
-
-Para este proceso se utilizó primero una herramienta llamada eyefit, que permite hacer un ajuste visual inicial de diferentes modelos teóricos al semivariograma empírico. Con esta función interactiva se fue probando distintas combinaciones de parámetros, tanto para modelos del tipo Wave como exponencial, observando visualmente cuáles se aproximaban mejor a la forma del semivariograma. Con base en esto, se seleccionó tres modelos que mostraban un comportamiento razonable frente a los datos empíricos: dos modelos Wave (uno con pepita fija y otro con pepita libre), y un modelo exponencial con pepita libre.
-
-Los valores iniciales de los parámetros para cada modelo se tomaron de ese ajuste visual. Luego, con esos valores, se hizo el ajuste formal mediante una función que permite optimizar los parámetros para que el modelo se adapte lo mejor posible al semivariograma empírico, en este caso ponderando según el número de pares de observaciones en cada rezago. Para uno de los modelos Wave se dejó la pepita fija en 1.72; mientras que en los otros dos modelos se permitió que la pepita se ajustara libremente.
-
 ```{r}
 #| echo: false
+#| results: false
+
 #eyefit(vari2)
 
 # Ajuste de semivariogramas con diferentes modelos y condiciones
@@ -922,6 +1025,12 @@ fitvar5 <- variofit(vari2,
                     kappa = 1.35,
                     wei = "npairs")
 
+
+```
+
+```{r}
+#| echo: false
+
 # Gráfico del semivariograma empírico y modelos ajustados
 plot(vari2$u, vari2$v,
      xlab = "Distancia (h)",
@@ -951,10 +1060,6 @@ legend("topleft",
        text.col = "black")
 
 ```
-
-Una vez realizados los ajustes, se graficaron los tres modelos teóricos junto al semivariograma empírico. Visualmente, los tres modelos parecen representar adecuadamente la estructura espacial de los datos. Todos capturan bien el incremento inicial de la semivarianza. Sin embargo, para decidir cuál de los modelos se ajusta mejor, se utilizará el criterio cuantitativo basado en el error cuadrático medio (RMSE), que permitirá comparar qué tan cerca está cada modelo de los valores empíricos en promedio.
-
-Los resultados obtenidos para el RMSE de cada modelo fueron los siguientes:
 
 ```{r}
 #| echo: false
@@ -988,13 +1093,39 @@ rmse_comparacion <- c("Wave" = rmse1, "Espherical" = rmse2, "Gaussian" = rmse3, 
 knitr::kable(rmse_comparacion, col.names = c("Modelo", "RMSE"))
 ```
 
-A partir de estos valores, se observa que el modelo Wave con pepita fija presenta el menor RMSE, lo que indica que es el que mejor se ajusta al semivariograma empírico bajo este criterio. Aunque las diferencias no son tan grandes respecto al modelo Wave con pepita libre, sí marcan una ventaja que justifica seleccionarlo como el modelo final a utilizar en adelante para la representación de la estructura de dependencia espacial en los datos.
+Se ajustaron nuevamente cinco modelos teóricos de semivariograma con pepita fija: Wave, Esférico, Gaussiano, Exponencial y Matérn. Todos mostraron un comportamiento razonable al ser comparados visualmente con el semivariograma empírico, siguiendo de forma adecuada la estructura de los datos. Finalmente, el modelo esférico fue seleccionado para el análisis, al ser uno de los que presentaba el menor error cuadrático medio (RMS) entre las opciones consideradas.
+
+
+```{r}
+#| echo: false
+
+library(knitr)
+
+params <- data.frame(
+  Parámetro = c("Modelo", 
+                "Pepita (τ²)", 
+                "Silla parcial (σ²)", 
+                "Sill total (τ² + σ²)", 
+                "Rango (ϕ)", 
+                "Rango práctico (cor ≈ 0.05)"),
+  Valor = c("Esférico",
+            0,
+            round(fitvar2$cov.pars[1], 4),
+            round(sum(fitvar2$cov.pars[1], 0), 4),
+            round(fitvar2$cov.pars[2], 2),
+            round(3 * fitvar2$cov.pars[2], 2))
+)
+
+kable(params, caption = "Resumen interpretado del ajuste de variograma (WLS)")
+
+
+```
 
 ```{r}
 #| echo: false
 # 1. Graficar el semivariograma empírico
 plot(vari2,
-     main = "Semivariograma empírico con modelo ajustado",
+     main = "Semivariograma empírico con modelo ajustado esférico",
      xlab = "Distancia (h)",
      ylab = expression(gamma(h)))
 
@@ -1005,6 +1136,7 @@ lines.variomodel(fitvar2, col = "blue", lwd = 2)
 # 3. Guardar el modelo final para interpolación posterior
 final_model <- fitvar2
 ```
+## KRIGING DEL PM10
 
 ```{r}
 #| include: false
@@ -1016,7 +1148,10 @@ PM10_sf <- st_as_sf(PM10, coords = c("este", "norte"), crs = CRS_UTM_CO)
 PM10_sp <- as(PM10_sf, "Spatial")
 
 # Ajustar modelo de semivariograma
-final_model <- vgm(psill = 19.522, model = "Sph", range = 4639.711, nugget = 0)
+final_model <- vgm(psill = sum(fitvar2$cov.pars[1], 0),
+                   model = "Sph",
+                   range = fitvar2$cov.pars[2],
+                   nugget = 0)
 
 # Crear grilla usando límites del shapefile
 bbox_colom <- st_bbox(colom_shp)
@@ -1031,10 +1166,10 @@ proj4string(grilla) <- CRS(st_crs(colom_shp)$proj4string)
 # Kriging indicador
 kriging_result <- krige(residuals ~ 1, PM10_sp, grilla, model = final_model)
 
-
-# Resumen
-summary(kriging_result@data$var1.pred)
-summary(kriging_result@data$var1.var)
+# 
+# # Resumen
+# summary(kriging_result@data$var1.pred)
+# summary(kriging_result@data$var1.var)
 ```
 
 ```{r}
@@ -1064,7 +1199,7 @@ kriging_df$PM10_estimado <- kriging_df$var1.pred + kriging_df$tendencia
 # 7. Graficar mapa final
 library(ggplot2)
 
-ggplot() +
+gr4 <- ggplot() +
   geom_raster(data = kriging_df, aes(x = x, y = y, fill = PM10_estimado)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradientn(
@@ -1081,13 +1216,17 @@ ggplot() +
   theme(
     legend.position = "right",
     axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
   ) +
   coord_sf()
 
-```
+print(gr4)
 
+```
+Tras ajustar el modelo esférico al semivariograma de los residuales y generar la malla espacial de interpolación (con celdas de 100 metros por 100 metros), se aplicó el método de kriging ordinario para estimar los niveles promedio anuales de PM10 en toda la ciudad. El mapa resultante muestra un patrón espacial muy similar al observado para el PM2.5: las zonas del norte, nororiente y oriente de Bogotá presentan niveles bajos de PM10, con valores alrededor de 30 microgramos por metro cúbico, representados en tonos azules y verdes. En contraste, hacia el occidente y suroccidente, los valores del contaminante aumentan considerablemente, alcanzando niveles entre 50 y más de 60, evidenciando una distribución geográfica desigual en la exposición a este contaminante.
 ```{r}
 #| echo: false
 # 1. Convertir la varianza de predicción a raster
@@ -1101,7 +1240,7 @@ kriging_var_df <- as.data.frame(kriging_var_masked, xy = TRUE)
 kriging_var_df <- na.omit(kriging_var_df)
 
 # 4. Mapa de la varianza (variabilidad del kriging)
-ggplot() +
+gr5 <- ggplot() +
   geom_raster(data = kriging_var_df, aes(x = x, y = y, fill = var1.var)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradientn(
@@ -1118,17 +1257,21 @@ ggplot() +
   theme(
     legend.position = "right",
     axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
   ) +
   coord_sf()
 
-
+print(gr5)
 
 ```
 
 ```{r}
 #| echo: false
+#| warning: false
+
 library(raster)
 library(ggplot2)
 
@@ -1157,7 +1300,7 @@ cv_df <- as.data.frame(cv_raster, xy = TRUE)
 cv_df <- na.omit(cv_df)
 
 # 6. Graficar coeficiente de variación (%)
-ggplot() +
+gr6<-ggplot() +
   geom_raster(data = cv_df, aes(x = x, y = y, fill = layer)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradientn(
@@ -1167,13 +1310,13 @@ ggplot() +
   ) +
   labs(
     title = "Mapa del Coeficiente de Variación (CV) del Kriging",
-    subtitle = "Incertidumbre relativa de PM10",
-    caption = "CV = (Desv. estándar / Valor estimado) * 100"
-  ) +
+    subtitle = "Incertidumbre relativa de PM10") +
   theme_minimal() +
   theme(
     legend.position = "right",
     axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
   ) +
@@ -1184,9 +1327,65 @@ a2 <- data.frame(PM10_estimado = kriging_df$PM10_estimado,
                 varianza = kriging_var_df$var1.var,
                 cv = sqrt(kriging_var_df$var1.var) / abs(kriging_df$PM10_estimado)*100)
 
-```
+print(gr6)
 
-# COKRIGING
+```
+En cuanto a la incertidumbre asociada a las predicciones, el mapa de varianza muestra valores bajos (de 0 a 20) en las zonas cercanas a las estaciones de monitoreo —destacadas con tonos blancos—, y valores crecientes hacia las regiones más alejadas, representadas en tonos azul oscuro, lo cual es esperable. Por su parte, el mapa del coeficiente de variación presenta un patrón similar al del PM2.5, pero con valores aún más altos, posiblemente debido a la mayor variabilidad del PM10. Se evidencia un aumento significativo del coeficiente de variación hacia el oriente, mientras que en el occidente los valores son considerablemente menores, reflejando mayor precisión en las estimaciones donde la densidad de monitoreo es más alta.
+
+### Medidas de calidad asociadas 
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+# 2. Validación cruzada Leave-One-Out
+cv_result <- krige.cv(residuals ~ 1, 
+                      PM10_sp, 
+                      model = final_model,
+                      nfold = nrow(PM10_sp))  # LOO-CV
+
+# 3. Convertir a data.frame
+cv_df <- as.data.frame(cv_result)
+
+# 4. Calcular errores
+cv_df$error <- cv_df$observed - cv_df$var1.pred
+
+# 5. Métricas de desempeño
+ME   <- mean(cv_df$error)
+MAE  <- mean(abs(cv_df$error))
+RMSE <- sqrt(mean(cv_df$error^2))
+
+# 6. Tabla de errores principales
+errores <- data.frame(
+  Métrica = c("Error Medio (ME)", 
+              "Error Absoluto Medio (MAE)", 
+              "Raíz del Error Cuadrático Medio (RMSE)"),
+  Valor = round(c(ME, MAE, RMSE), 4)
+)
+
+k2<-kable(errores, caption = "Resumen de medidas de calidad asociadas para el kriging de PM10")
+
+k2
+```
+Las medidas de calidad del kriging para PM10 muestran un error medio cercano a cero (−0.1841), lo que indica ausencia de sesgo sistemático en las predicciones. El MAE y el RMSE fueron de 4.46 y 5.39, respectivamente, reflejando una mayor variabilidad y dificultad de predicción frente al PM2.5, lo cual es coherente con el comportamiento más disperso del contaminante en la ciudad.
+
+## CONCLUSIÓN DEL ANÁLISIS ESPACIAL DE PM10
+
+El comportamiento espacial del PM10 en Bogotá durante 2022 resultó ser muy similar al del PM2.5, mostrando una distribución decreciente hacia el norte y oriente de la ciudad, y concentraciones más elevadas en el occidente y suroccidente. Esta tendencia fue confirmada tanto en el análisis exploratorio como en los modelos de tendencia y en la interpolación por kriging.
+
+Sin embargo, a diferencia del PM2.5, el PM10 presentó una mayor variabilidad, reflejada en valores más altos del error de predicción y del coeficiente de variación. Esto sugiere que el PM10 es más disperso y menos predecible espacialmente, lo cual puede deberse a su origen mixto (natural y antropogénico) y a su mayor sensibilidad a condiciones locales como el viento, la resuspensión de polvo o la actividad vehicular pesada.
+
+Pese a estas diferencias, los resultados permiten concluir que los patrones espaciales generales del PM10 son consistentes y confiables, y pueden ser útiles para apoyar la toma de decisiones ambientales y de salud pública en Bogotá.
+
+# COKRIGING DE PM2.5
+
+Con el objetivo de mejorar la precisión de las estimaciones espaciales del PM2.5, se implementó un análisis de Cokriging, utilizando como variable auxiliar el PM10, dada su alta correlación y su comportamiento espacial similar. Esta técnica permite aprovechar la información conjunta de ambas variables para refinar las predicciones del contaminante principal (PM2.5), especialmente en áreas con menor cobertura o mayor incertidumbre. El uso del Co-Kriging se justifica no solo por la relación estadística entre las variables, sino también por su coherencia desde el punto de vista físico y ambiental, al tratarse de dos partículas de material particulado con fuentes comunes y efectos similares.
+
+## Cálculo de los semivariogramas empíricos
+
+Para el desarrollo del modelo, se graficaron los semivariogramas empíricos marginales de PM2.5 y PM10, así como el semivariograma cruzado entre ambas variables. En los tres casos se observaron patrones similares, con algunos rezagos iniciales sin valores representados debido a la escasez de pares de observaciones en esas distancias cortas. A medida que la distancia entre puntos aumenta, los semivariogramas muestran un crecimiento progresivo, seguido por una estabilización alrededor de los 5.000 metros, lo que sugiere un rango común de dependencia espacial. Además, se identifican ciertas oscilaciones en la estructura de los datos, lo cual podría estar relacionado con fluctuaciones locales en la distribución de los contaminantes o con interacciones más complejas entre ambas variables.
 
 ```{r}
 #| echo: false
@@ -1194,14 +1393,14 @@ a2 <- data.frame(PM10_estimado = kriging_df$PM10_estimado,
 df <- merge(PM2_5[,c(1,2,6)], PM10[,c(1,2,6)], by = c("este", "norte"), all = TRUE)
 colnames(df)[3:4] <- c("PM2.5", "PM10")  # usa los nombres que usará gstat
 
-cor(df, use = "complete.obs")
-
-summary(dist(df[,1:2]))
+# cor(df, use = "complete.obs")
+# 
+# summary(dist(df[,1:2]))
 
 
 coordinates(df) <- ~este + norte
 
-summary(df)
+# summary(df)
 
 df_ok <- df[!is.na(df$PM2.5) & !is.na(df$PM10), ]
 
@@ -1214,12 +1413,11 @@ g <- gstat(g,    id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok)
 v <- variogram(g, cutoff=14750, width = 1050)
 
 v_filtrado <- v[v$np >= 5, ]
+
 plot(v_filtrado, main = "Variogramas cruzados PM2.5 y PM10")
-# 
-
-
-
 ```
+## Ajuste del modelo teórico
+Para representar la dependencia espacial conjunta entre el PM2.5 y el PM10, se ajustó un Modelo Lineal de Coregionalización (LMC) a partir del semivariograma cruzado y los marginales. En esta etapa, se probaron distintas estructuras iniciales de tipo gaussiano, exponencial y esférico, todas con pepita igual a cero y rangos iniciales que variaban entre 6.000 y 10.000 metros. A cada una de estas configuraciones se le calculó su raíz del error cuadrático medio (RMSE) para evaluar el ajuste.
 
 ```{r}
 #| echo: false
@@ -1275,7 +1473,8 @@ modelos_base <- list(
   Gau6000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 6000),
   Gau7000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 7000),
   Gau8000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 8000),
-  Gau9000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 9000)
+  Gau9000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 9000),
+  Gau10000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 10000)
 )
 ```
 
@@ -1285,43 +1484,68 @@ modelos_base <- list(
 resultados <- ajustar_y_evaluar_modelos(v_filtrado, g, modelos_base)
 print(resultados)
 ```
-
+El modelo que presentó el menor RMSE fue el gaussiano con rango de 10.000 metros, motivo por el cual se seleccionó esta configuración como punto de partida para la optimización final. Posteriormente, se ajustaron los parámetros específicos de cada estructura (nugget y sill parcial) para las dos variables individuales y su interacción cruzada, obteniendo los siguientes valores:
 ```{r}
 #| echo: false
-# Define el modelo con estructura esférica
-model <- vgm(psill = 20, model = "Gau", nugget = 0, range = 10000)
+#| message: false
+#| warning: false
 
-# Ajusta el modelo a los tres variogramas
-lmc <- fit.lmc(v_filtrado, g, model = model)
+# 1. Definir estructura base (modelo gaussiano)
+modelo_base <- vgm(psill = 20, model = "Gau", nugget = 0, range = 10000)
 
-# Guardar sill totales antes de modificar
-sill_PM10_total <- sum(lmc$model$PM10$psill)
-sill_PM25_total <- sum(lmc$model$PM2.5$psill)
-sill_cross_total <- sum(lmc$model$`PM10.PM2.5`$psill)
+# 2. Ajustar modelo LMC con estructura compartida
+lmc <- fit.lmc(v_filtrado, g, model = modelo_base)
 
-# Nuggets diferentes para cada componente
-nugget1 <- 5  # nugget PM10
-nugget2 <- 0.5  # nugget PM2.5
-nugget3 <- 0  # nugget cruzado
+# 3. Guardar sills totales antes de modificar (opcional)
+sill_PM10_total      <- sum(lmc$model$PM10$psill)
+sill_PM25_total      <- sum(lmc$model$PM2.5$psill)
+sill_cross_total     <- sum(lmc$model$`PM10.PM2.5`$psill)
 
-# Asignar nuggets
-lmc$model$PM10$psill[1] <- nugget1
-lmc$model$PM2.5$psill[1] <- nugget2
-lmc$model$`PM10.PM2.5`$psill[1] <- nugget3
+# 4. Definir nuggets deseados
+nugget_PM10 <- 5
+nugget_PM25 <- 0.5
+nugget_cross <- 0
 
-# Ajustar sill gaussiano para mantener el sill total igual al original
-lmc$model$PM10$psill[2] <- sill_PM10_total - nugget1
-lmc$model$PM2.5$psill[2] <- sill_PM25_total - nugget2
-lmc$model$`PM10.PM2.5`$psill[2] <- sill_cross_total - nugget3
+# 5. Reasignar psills: primero el nugget (posición 1), luego el sill estructural (posición 2)
+lmc$model$PM10$psill[1]         <- nugget_PM10
+lmc$model$PM2.5$psill[1]        <- nugget_PM25
+lmc$model$`PM10.PM2.5`$psill[1] <- nugget_cross
 
+lmc$model$PM10$psill[2]         <- sill_PM10_total - nugget_PM10
+lmc$model$PM2.5$psill[2]        <- sill_PM25_total - nugget_PM25
+lmc$model$`PM10.PM2.5`$psill[2] <- sill_cross_total - nugget_cross
 
-# Visualiza el ajuste
-plot(v_filtrado, lmc, main = "Ajuste del modelo LMC")
+# 6. Graficar el ajuste del modelo LMC
+plot(v_filtrado, lmc, main = "Ajuste del Modelo Lineal de Coregionalización (LMC)")
+
+# 7. Extraer parámetros en tabla
+param_tab <- data.frame(
+  Variable = c("PM10 (nugget)", "PM10 (estructura)",
+               "PM2.5 (nugget)", "PM2.5 (estructura)",
+               "PM10.PM2.5 (nugget)", "PM10.PM2.5 (estructura)"),
+  Psill = c(
+    lmc$model$PM10$psill[1], lmc$model$PM10$psill[2],
+    lmc$model$PM2.5$psill[1], lmc$model$PM2.5$psill[2],
+    lmc$model$`PM10.PM2.5`$psill[1], lmc$model$`PM10.PM2.5`$psill[2]
+  ),
+  Modelo = rep("Gaussiano", 6),
+  Rango = rep(lmc$model$PM10$range[2], 6)
+)
+
+kable(param_tab, caption = "Parámetros ajustados del Modelo Lineal de Coregionalización (LMC)")
+
 
 ```
+Estos resultados reflejan una estructura espacial común entre ambos contaminantes, con un rango de influencia compartido y una contribución cruzada significativa, lo cual valida la pertinencia del modelo para el posterior proceso de Cokriging.
+
+## Predicciones para el PM2.5 usando cokriging
+
+Tras ajustar el Modelo Lineal de Coregionalización, se procedió a realizar la interpolación del PM2.5 mediante Cokriging, utilizando el PM10 como variable auxiliar. El mapa resultante muestra una distribución espacial más marcada que la obtenida previamente con Kriging univariado. En particular, se observa que la zona norte, nororiente y suroriente de la ciudad presentan valores estimados de PM2.5 significativamente bajos, en el rango de 0 a 17 $\mu g/m^3$, lo cual sugiere mejores condiciones de calidad del aire en estas áreas. En contraste, la zona occidente de Bogotá concentra las mayores estimaciones del contaminante, alcanzando valores de hasta 30 $\mu g/m^3$ en el extremo occidental, y mostrando una clara transición desde niveles moderados (alrededor de 20) hacia niveles altos conforme se avanza hacia el occidente.
 
 ```{r}
 #| echo: false
+#| message: false
+#| warning: false
 
 # 0. Crear el objeto gstat con modelos ajustados desde LMC
 g_cokrig <- gstat(NULL, id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok, model = lmc$model$PM2.5)
@@ -1386,7 +1610,7 @@ var_df <- as.data.frame(var_raster_masked, xy = TRUE)
 var_df <- na.omit(var_df)
 
 # 7. Visualizar la predicción puntual (concentración total)
-p5 <- ggplot() +
+gr7 <- ggplot() +
   geom_raster(data = pred_df, aes(x = x, y = y, fill = PM25_estimado)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradientn(
@@ -1404,13 +1628,15 @@ p5 <- ggplot() +
   theme(
     legend.position = "right",
     axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
   ) +
   coord_sf()
 
 # 8. Visualizar la varianza (incertidumbre del cokriging)
-p6 <- ggplot() +
+gr8 <- ggplot() +
   geom_raster(data = var_df, aes(x = x, y = y, fill = PM2.5.var)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradient(
@@ -1427,16 +1653,18 @@ p6 <- ggplot() +
   theme(
     legend.position = "right",
     axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
   ) +
   coord_sf()
 
-print(p5)
+print(gr7)
 
-print(p6)
+print(gr8)
 
-summary(var_df$PM2.5.var)
+# summary(var_df$PM2.5.var)
 
 
 
@@ -1453,7 +1681,7 @@ cv_df$CV[is.infinite(cv_df$CV) | is.nan(cv_df$CV)] <- NA
 cv_df <- na.omit(cv_df)
 
 # 10. Graficar el Coeficiente de Variación (%)
-p_cv <- ggplot() +
+gr9 <- ggplot() +
   geom_raster(data = cv_df, aes(x = x, y = y, fill = CV)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradientn(
@@ -1470,68 +1698,88 @@ p_cv <- ggplot() +
   theme(
     legend.position = "right",
     axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5)
   ) +
   coord_sf()
 
-print(p_cv)
+print(gr9)
 ```
+El mapa de la varianza de predicción del Cokriging presenta una superficie más suave y continua en comparación con la obtenida en el análisis univariado, sin los picos abruptos que aparecían sobre las estaciones de monitoreo. Los valores de varianza estimada oscilan entre 0 y 6-7 $\mu g/m^3$, y se observa un patrón creciente de norte a sur, siendo especialmente elevada en el extremo sur de la ciudad, en zonas como Usme y su periferia rural, donde históricamente se dispone de menor densidad de estaciones. Este patrón está en línea con la lógica geográfica y operativa del monitoreo: las zonas menos urbanizadas y de más difícil acceso tienden a tener mayor incertidumbre en las estimaciones debido a la escasa disponibilidad de datos directos.
+
+Respecto al coeficiente de variación de las predicciones, se evidencia un cambio importante frente al modelo univariado. Mientras anteriormente las zonas de mayor incertidumbre relativa se ubicaban en el oriente, en este caso el mayor coeficiente de variación (hasta 17%) se concentra en la región suroriente, posiblemente como consecuencia de la variabilidad espacial más compleja del PM10 en esa zona, que se transfiere al estimador del PM2.5. Por su parte, la zona occidental de la ciudad, donde se detectaron las mayores concentraciones de PM2.5, presenta ahora los valores más bajos de coeficiente de variación (alrededor del 4-5%), lo cual da mayor confiabilidad a los resultados en las áreas donde más se requiere una estimación precisa.
 
 
 
 
+```{r}
+#| echo: false
+library(gstat)
+library(sp)
+library(knitr)
+
+# Asegurar sistema de referencia (solo si no tiene)
+if (is.na(proj4string(df_ok))) {
+  proj4string(df_ok) <- CRS(st_crs(colom_shp)$wkt)
+}
+
+# 1. Validación cruzada Leave-One-Out para PM2.5 (modelo LMC ajustado)
+cv_lmc <- krige.cv(PM2.5 ~ 1,
+                   locations = df_ok,
+                   model = lmc$model$PM2.5,
+                   nfold = nrow(df_ok))  # Leave-One-Out
+
+# 2. Convertir resultados a data.frame
+cv_lmc_df <- as.data.frame(cv_lmc)
+
+# 3. Calcular errores
+cv_lmc_df$error <- cv_lmc_df$observed - cv_lmc_df$var1.pred
+
+# 4. Métricas de validación
+ME_lmc   <- mean(cv_lmc_df$error)
+MAE_lmc  <- mean(abs(cv_lmc_df$error))
+RMSE_lmc <- sqrt(mean(cv_lmc_df$error^2))
+
+# 5. Tabla resumen con kable
+errores_lmc <- data.frame(
+  Métrica = c("Error Medio (ME)", 
+              "Error Absoluto Medio (MAE)", 
+              "Raíz del Error Cuadrático Medio (RMSE)"),
+  Valor = round(c(ME_lmc, MAE_lmc, RMSE_lmc), 4)
+)
+
+k3 <- knitr::kable(errores_lmc, caption = "Resumen de medidas de calidad asociadas para el cokriging de PM2.5")
+k1
+k3
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
+Finalmente, al comparar las medidas de calidad asociadas a las predicciones, se evidencia una mejora sustancial al aplicar Co-Kriging en lugar de Kriging univariado. El Error Medio (ME) pasó de -0.1841 en el modelo univariado a -0.0839 con Co-Kriging, lo que indica una reducción del sesgo. Asimismo, el Error Absoluto Medio (MAE) disminuyó de 4.4597 a 1.9606, y la Raíz del Error Cuadrático Medio (RMSE) bajó de 5.3882 a 2.2845, lo que refleja una mejora significativa en la precisión general del modelo. Estos resultados confirman que incorporar información del PM10 como variable auxiliar permite estimaciones del PM2.5 mucho más precisas, lo cual es especialmente útil en zonas donde las mediciones directas son escasas o ausentes.
 
 # COKRIGING PM10
+
+En el caso del Co-Kriging del PM10 utilizando el PM2.5 como variable auxiliar, se siguió una metodología análoga a la empleada previamente. Los semivariogramas individuales y cruzados resultaron prácticamente idénticos a los obtenidos en la predicción del PM2.5, lo cual es esperado dado que ambas variables comparten patrones espaciales similares. Nuevamente se optó por ajustar un Modelo Lineal de Coregionalización (LMC) con estructura gaussiana y rango inicial de 10.000, obteniéndose buenos ajustes en las estructuras individuales y cruzadas. Los modelos lograron capturar adecuadamente la dependencia espacial, siendo consistentes con el comportamiento observado en los semivariogramas empíricos.
+
+## Cálculo de los semivariogramas empíricos
+
 
 ```{r}
 #| echo: false
 
 df <- merge(PM2_5[,c(1,2,6)], PM10[,c(1,2,6)], by = c("este", "norte"), all = TRUE)
 colnames(df)[3:4] <- c("PM2.5", "PM10")  # usa los nombres que usará gstat
-
-cor(df, use = "complete.obs")
-
-summary(dist(df[,1:2]))
+# 
+# cor(df, use = "complete.obs")
+# 
+# summary(dist(df[,1:2]))
 
 
 coordinates(df) <- ~este + norte
 
-summary(df)
+# summary(df)
 
 df_ok <- df[!is.na(df$PM2.5) & !is.na(df$PM10), ]
 
@@ -1550,6 +1798,7 @@ plot(v_filtrado, main = "Variogramas cruzados PM2.5 y PM10")
 
 
 ```
+## Ajuste del modelo teórico
 
 ```{r}
 #| echo: false
@@ -1605,7 +1854,8 @@ modelos_base <- list(
   Gau6000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 6000),
   Gau7000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 7000),
   Gau8000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 8000),
-  Gau9000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 9000)
+  Gau9000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 9000),
+  Gau10000 = vgm(psill = 5, model = "Gau", nugget = 0.0, range = 10000)
 )
 ```
 
@@ -1649,9 +1899,13 @@ lmc$model$`PM10.PM2.5`$psill[2] <- sill_cross_total - nugget3
 plot(v_filtrado, lmc, main = "Ajuste del modelo LMC")
 
 ```
+## Predicciones para el PM2.5 usando cokriging
 
+En cuanto al mapa de predicción de PM10, se evidenció un patrón muy similar al encontrado en el caso univariado: valores más bajos (alrededor de 30) en el oriente y nororiente de la ciudad, y valores crecientes hacia el occidente, alcanzando incluso concentraciones superiores a 70. La varianza de predicción fue menor en las zonas donde se ubican las estaciones de monitoreo (zonas centrales y norte), y más alta en regiones rurales y periféricas como Usme, donde supera los 25. El coeficiente de variación se mantuvo en un rango de 0 a 20%, reflejando un patrón muy parecido al observado en el Cokriging del PM2.5, con mayor incertidumbre en las zonas periféricas y más certeza en los sectores más contaminados del occidente. Sin embargo, al comparar las medidas de error, se observa que el Co-Kriging para PM10 no mejora respecto al modelo univariado, ya que el RMSE aumentó de 5.3882 a 5.7235 y el MAE también se incrementó levemente. Esto sugiere que, en este caso, el PM2.5 no aporta información adicional suficiente para mejorar la predicción del PM10, probablemente porque el PM10 tiene una variabilidad propia más alta o más ruido en su medición.
 ```{r}
 #| echo: false
+#| message: false
+#| warning: false
 
 # 0. Crear el objeto gstat con modelos ajustados desde LMC
 g_cokrig <- gstat(NULL, id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok, model = lmc$model$PM2.5)
@@ -1716,7 +1970,7 @@ var_df <- as.data.frame(var_raster_masked, xy = TRUE)
 var_df <- na.omit(var_df)
 
 # 7. Visualizar la predicción puntual (concentración total)
-p5 <- ggplot() +
+gr10 <- ggplot() +
   geom_raster(data = pred_df, aes(x = x, y = y, fill = PM10_estimado)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradientn(
@@ -1740,7 +1994,7 @@ p5 <- ggplot() +
   coord_sf()
 
 # 8. Visualizar la varianza (incertidumbre del cokriging)
-p6 <- ggplot() +
+gr11 <- ggplot() +
   geom_raster(data = var_df, aes(x = x, y = y, fill = PM10.var)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradient(
@@ -1762,11 +2016,11 @@ p6 <- ggplot() +
   ) +
   coord_sf()
 
-print(p5)
+print(gr10)
 
-print(p6)
+print(gr11)
 
-summary(var_df$PM10.var)
+# summary(var_df$PM10.var)
 
 
 
@@ -1783,7 +2037,7 @@ cv_df$CV[is.infinite(cv_df$CV) | is.nan(cv_df$CV)] <- NA
 cv_df <- na.omit(cv_df)
 
 # 10. Graficar el Coeficiente de Variación (%)
-p_cv <- ggplot() +
+gr12 <- ggplot() +
   geom_raster(data = cv_df, aes(x = x, y = y, fill = CV)) +
   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
   scale_fill_gradientn(
@@ -1805,798 +2059,67 @@ p_cv <- ggplot() +
   ) +
   coord_sf()
 
-print(p_cv)
+print(gr12)
 ```
-<!-- # COKRIGING #### -->
 
-<!-- ```{r} -->
 
-<!-- #| echo: false -->
 
-<!-- df <- merge(PM10[,1:3], PM2_5[1:3], by = c("este", "norte"), all = TRUE) -->
+```{r}
+#| echo: false
+library(gstat)
+library(sp)
+library(knitr)
 
-<!-- colnames(df)[3:4] <- c("PM10", "PM2.5") -->
+# Asegurar sistema de referencia (solo si no tiene)
+if (is.na(proj4string(df_ok))) {
+  proj4string(df_ok) <- CRS(st_crs(colom_shp)$wkt)
+}
 
-<!-- cor(df, use = "complete.obs") -->
+# 1. Validación cruzada Leave-One-Out para PM2.5 (modelo LMC ajustado)
+cv_lmc <- krige.cv(PM10 ~ 1,
+                   locations = df_ok,
+                   model = lmc$model$PM10,
+                   nfold = nrow(df_ok))  # Leave-One-Out
 
-<!-- summary(dist(df[,1:2])) -->
+# 2. Convertir resultados a data.frame
+cv_lmc_df <- as.data.frame(cv_lmc)
 
-<!-- coordinates(df) <- ~este + norte -->
+# 3. Calcular errores
+cv_lmc_df$error <- cv_lmc_df$observed - cv_lmc_df$var1.pred
 
-<!-- summary(df) -->
+# 4. Métricas de validación
+ME_lmc   <- mean(cv_lmc_df$error)
+MAE_lmc  <- mean(abs(cv_lmc_df$error))
+RMSE_lmc <- sqrt(mean(cv_lmc_df$error^2))
 
-<!-- df_ok <- df[!is.na(df$PM2.5) & !is.na(df$PM10), ] -->
+# 5. Tabla resumen con kable
+errores_lmc <- data.frame(
+  Métrica = c("Error Medio (ME)", 
+              "Error Absoluto Medio (MAE)", 
+              "Raíz del Error Cuadrático Medio (RMSE)"),
+  Valor = round(c(ME_lmc, MAE_lmc, RMSE_lmc), 4)
+)
 
-<!-- # Define modelo gstat para cada variable -->
+k4 <- knitr::kable(errores_lmc, caption = "Resumen de medidas de calidad asociadas para el cokriging de PM10")
+k2
+k4
 
-<!-- g <- gstat(NULL, id = "PM10", formula = PM10 ~ 1, data = df_ok) -->
 
-<!-- g <- gstat(g,    id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok) -->
 
-<!-- # Calcula los variogramas directos y cruzado -->
+```
 
-<!-- # v <- variogram(g, cutoff = 14000, width = 1000) -->
+# CONCLUSIONES GENERALES
 
-<!-- v <- variogram(g, cutoff=15707.75, width = 1208.288) -->
+Este análisis abordó de forma integral la caracterización espacial de la calidad del aire en Bogotá durante el año 2022, enfocándose en los contaminantes PM2.5 y PM10. A través de un enfoque geoestadístico riguroso, que incluyó desde análisis exploratorio y extracción de tendencias hasta el ajuste de modelos de semivariogramas y la aplicación de Kriging y Co-Kriging, fue posible identificar patrones de distribución, niveles de incertidumbre y áreas críticas de concentración de contaminantes en la ciudad.
 
-<!-- v_filtrado <- v[v$np >= 5, ] -->
+Desde el punto de vista metodológico, se demostró la importancia de remover tendencias espaciales antes de aplicar métodos de interpolación, lo cual permitió mejorar la precisión de las predicciones. El uso del Co-Kriging, en particular, evidenció su utilidad cuando se cuenta con variables auxiliares correlacionadas, como ocurrió al predecir PM2.5 apoyándose en PM10, donde los errores de predicción se redujeron notablemente. En cambio, al invertir la relación (PM10 explicado con PM2.5), la mejora no fue tan significativa, posiblemente debido a la mayor variabilidad propia del PM10 o a diferencias en la dinámica de su emisión.
 
-<!-- plot(v_filtrado, main = "Variogramas cruzados PM2.5 y PM10") -->
+En términos de resultados reales, se identificó una clara concentración de contaminantes hacia el occidente de Bogotá, en especial en localidades con alta densidad poblacional, tráfico vehicular e industrias. Por el contrario, las zonas nororientales y surorientales —más cercanas a los cerros orientales o con menor actividad urbana— mostraron niveles considerablemente más bajos de contaminación. Esta distribución no es casual: responde a factores estructurales como la ubicación de fuentes emisoras, la topografía, la dirección de los vientos y las brechas en infraestructura ambiental, como la baja densidad de estaciones en ciertas zonas rurales o periféricas.
 
-<!-- #  -->
+Los mapas de incertidumbre también revelaron que, mientras las zonas cercanas a estaciones tienen predicciones más confiables, otras regiones —especialmente en el suroriente— presentan alta incertidumbre, lo que sugiere la necesidad de reforzar el monitoreo en esos sectores para garantizar una cobertura equitativa y eficaz en el control ambiental.
 
-<!-- ``` -->
+En conjunto, este estudio no solo permitió describir la calidad del aire con gran detalle, sino también identificar zonas prioritarias para la intervención y sentar bases técnicas sólidas para futuras decisiones en salud pública, planeación urbana y justicia ambiental. Además, deja en evidencia que, con una buena estrategia de modelación espacial, es posible ampliar el conocimiento más allá de los puntos medidos, cubriendo vacíos críticos para la gestión territorial sostenible.
 
-<!-- ```{r} -->
+# REFERENCIAS
 
-<!-- #| echo: false -->
-
-<!-- calcular_rmse_lmc <- function(ajuste_lmc, v_filtrado) { -->
-
-<!--   modelo_PM10 <- ajuste_lmc$model$PM10 -->
-
-<!--   modelo_PM25 <- ajuste_lmc$model$PM2.5 -->
-
-<!--   modelo_cross <- ajuste_lmc$model$PM10.PM2.5 -->
-
-<!--   v_PM10 <- subset(v_filtrado, id == "PM10") -->
-
-<!--   v_PM25 <- subset(v_filtrado, id == "PM2.5") -->
-
-<!--   v_cross <- subset(v_filtrado, id == "PM10.PM2.5") -->
-
-<!--   pred_PM10 <- variogramLine(modelo_PM10, dist_vector = v_PM10$dist) -->
-
-<!--   pred_PM25 <- variogramLine(modelo_PM25, dist_vector = v_PM25$dist) -->
-
-<!--   pred_cross <- variogramLine(modelo_cross, dist_vector = v_cross$dist) -->
-
-<!--   rmse_PM10 <- sqrt(mean((v_PM10$gamma - pred_PM10$gamma)^2)) -->
-
-<!--   rmse_PM25 <- sqrt(mean((v_PM25$gamma - pred_PM25$gamma)^2)) -->
-
-<!--   rmse_cross <- sqrt(mean((v_cross$gamma - pred_cross$gamma)^2)) -->
-
-<!--   mean(c(rmse_PM10, rmse_PM25, rmse_cross)) -->
-
-<!-- } -->
-
-<!-- ajustar_y_evaluar_modelos <- function(v_filtrado, g, modelos_base) { -->
-
-<!--   resultados <- data.frame(Modelo = character(), RMSE = numeric(), stringsAsFactors = FALSE) -->
-
-<!--   for (nombre in names(modelos_base)) { -->
-
-<!--     modelo_inicial <- modelos_base[[nombre]] -->
-
-<!--     ajuste <- tryCatch({ -->
-
-<!--       fit.lmc(v_filtrado, g, model = modelo_inicial) -->
-
-<!--     }, error = function(e) NULL) -->
-
-<!--     if (!is.null(ajuste)) { -->
-
-<!--       rmse <- calcular_rmse_lmc(ajuste, v_filtrado) -->
-
-<!--       resultados <- rbind(resultados, data.frame(Modelo = nombre, RMSE = rmse)) -->
-
-<!--     } -->
-
-<!--   } -->
-
-<!--   resultados <- resultados[order(resultados$RMSE), ] -->
-
-<!--   return(resultados) -->
-
-<!-- } -->
-
-<!-- # Define tus modelos base, por ejemplo: -->
-
-<!-- modelos_base <- list( -->
-
-<!--   Exp6000 = vgm(psill = 0.15, model = "Exp", nugget = 0.05, range = 6000), -->
-
-<!--   Exp7000 = vgm(psill = 0.15, model = "Exp", nugget = 0.05, range = 7000), -->
-
-<!--   Exp8000 = vgm(psill = 0.15, model = "Exp", nugget = 0.05, range = 8000), -->
-
-<!--   Exp9000 = vgm(psill = 0.15, model = "Exp", nugget = 0.05, range = 9000), -->
-
-<!--   Sph6000 = vgm(psill = 0.15, model = "Sph", nugget = 0.05, range = 6000), -->
-
-<!--   Sph7000 = vgm(psill = 0.15, model = "Sph", nugget = 0.05, range = 7000), -->
-
-<!--   Sph8000 = vgm(psill = 0.15, model = "Sph", nugget = 0.05, range = 8000), -->
-
-<!--   Sph9000 = vgm(psill = 0.15, model = "Sph", nugget = 0.05, range = 9000), -->
-
-<!--   Gau6000 = vgm(psill = 0.15, model = "Gau", nugget = 0.05, range = 6000), -->
-
-<!--   Gau7000 = vgm(psill = 0.15, model = "Gau", nugget = 0.05, range = 7000), -->
-
-<!--   Gau8000 = vgm(psill = 0.15, model = "Gau", nugget = 0.05, range = 8000), -->
-
-<!--   Gau9000 = vgm(psill = 0.15, model = "Gau", nugget = 0.05, range = 9000) -->
-
-<!-- ) -->
-
-<!-- ``` -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- # Corre la comparación: -->
-
-<!-- resultados <- ajustar_y_evaluar_modelos(v_filtrado, g, modelos_base) -->
-
-<!-- print(resultados) -->
-
-<!-- ``` -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- # Define el modelo con estructura esférica -->
-
-<!-- model <- vgm(psill = 0.15, model = "Gau", nugget = 0.05, range = 5000) -->
-
-<!-- # Ajusta el modelo a los tres variogramas -->
-
-<!-- lmc <- fit.lmc(v_filtrado, g, model = model) -->
-
-<!-- # Visualiza el ajuste -->
-
-<!-- plot(v_filtrado, lmc, main = "Ajuste del modelo LMC") -->
-
-<!-- ``` -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- # 0. Crear el objeto gstat con modelos ajustados desde LMC -->
-
-<!-- g_cokrig <- gstat(NULL, id = "PM2.5", formula = PM2.5 ~ 1, data = df_ok, model = lmc$model$PM2.5) -->
-
-<!-- g_cokrig <- gstat(g_cokrig, id = "PM10", formula = PM10 ~ 1, data = df_ok, model = lmc$model$PM10) -->
-
-<!-- g_cokrig <- gstat(g_cokrig, id = c("PM2.5", "PM10"), model = lmc$model$PM10.PM2.5) -->
-
-<!-- # 1. Crear grilla basada en el shapefile -->
-
-<!-- bbox_colom <- st_bbox(colom_shp) -->
-
-<!-- grilla <- expand.grid( -->
-
-<!--   x = seq(bbox_colom["xmin"], bbox_colom["xmax"], by = 100), -->
-
-<!--   y = seq(bbox_colom["ymin"], bbox_colom["ymax"], by = 100) -->
-
-<!-- ) -->
-
-<!-- #496980.4 -->
-
-<!-- coordinates(grilla) <- ~x + y -->
-
-<!-- gridded(grilla) <- TRUE -->
-
-<!-- proj4string(grilla) <- CRS(st_crs(df_ok)$wkt)  # CRS consistente con los datos de entrenamiento -->
-
-<!-- # 2. Predecir con cokriging (predicción y varianza) -->
-
-<!-- pred <- predict(g_cokrig, newdata = grilla) -->
-
-<!-- # 3. Limitar la predicción a [0, 1] -->
-
-<!-- pred$PM2.5.pred[pred$PM2.5.pred < 0] <- 0 -->
-
-<!-- pred$PM2.5.pred[pred$PM2.5.pred > 1] <- 1 -->
-
-<!-- # 4. Convertir a raster y recortar al país (para predicción) -->
-
-<!-- pred_raster <- raster(pred["PM2.5.pred"]) -->
-
-<!-- colom_sp <- as(colom_shp, "Spatial") -->
-
-<!-- pred_raster_masked <- mask(pred_raster, colom_sp) -->
-
-<!-- # 5. Convertir a raster y recortar al país (para varianza) -->
-
-<!-- var_raster <- raster(pred["PM2.5.var"])  # O el nombre correcto de la varianza en pred -->
-
-<!-- var_raster_masked <- mask(var_raster, colom_sp) -->
-
-<!-- # 6. Convertir a data.frame para ggplot -->
-
-<!-- pred_df <- as.data.frame(pred_raster_masked, xy = TRUE) -->
-
-<!-- pred_df <- na.omit(pred_df) -->
-
-<!-- var_df <- as.data.frame(var_raster_masked, xy = TRUE) -->
-
-<!-- var_df <- na.omit(var_df) -->
-
-<!-- # 7. Visualizar la predicción puntual -->
-
-<!-- p1 <- ggplot() + -->
-
-<!--   geom_raster(data = pred_df, aes(x = x, y = y, fill = PM2.5.pred)) + -->
-
-<!--   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) + -->
-
-<!--   scale_fill_gradientn( -->
-
-<!--     name = "Probabilidad\nPM2.5 ≥ 25", -->
-
-<!--     limits = c(0, 1), -->
-
-<!--     colours = c("blue", "cyan", "green", "yellow", "orange", "red") -->
-
-<!--   ) + -->
-
-<!--   labs( -->
-
-<!--     title = "Probabilidad estimada de PM2.5 ≥ 15 µg/m³", -->
-
-<!--     subtitle = "Cokriging Indicador con PM10 como covariable", -->
-
-<!--     caption = "Modelo Gaussiano ajustado con LMC" -->
-
-<!--   ) + -->
-
-<!--   theme_minimal() + -->
-
-<!--   theme( -->
-
-<!--     legend.position = "right", -->
-
-<!--     axis.title = element_blank(), -->
-
-<!--     plot.title = element_text(face = "bold", hjust = 0.5), -->
-
-<!--     plot.subtitle = element_text(hjust = 0.5) -->
-
-<!--   ) + -->
-
-<!--   coord_sf() -->
-
-<!-- # 8. Visualizar la varianza (incertidumbre) de la predicción -->
-
-<!-- p2 <- ggplot() + -->
-
-<!--   geom_raster(data = var_df, aes(x = x, y = y, fill = PM2.5.var)) + -->
-
-<!--   geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) + -->
-
-<!--   scale_fill_gradient( -->
-
-<!--     name = "Varianza\nPM2.5", -->
-
-<!--     low = "white", -->
-
-<!--     high = "darkred", -->
-
-<!--   ) + -->
-
-<!--   labs( -->
-
-<!--     title = "Varianza estimada de la predicción de PM2.5", -->
-
-<!--     subtitle = "Indicador Cokriging", -->
-
-<!--     caption = "Modelo Gaussiano ajustado con LMC" -->
-
-<!--   ) + -->
-
-<!--   theme_minimal() + -->
-
-<!--   theme( -->
-
-<!--     legend.position = "right", -->
-
-<!--     axis.title = element_blank(), -->
-
-<!--     plot.title = element_text(face = "bold", hjust = 0.5), -->
-
-<!--     plot.subtitle = element_text(hjust = 0.5) -->
-
-<!--   ) + -->
-
-<!--   coord_sf() -->
-
-<!-- # 9. Mostrar ambos gráficos (puedes elegir imprimir uno a la vez o usar gridExtra/patchwork para juntarlos) -->
-
-<!-- print(p1) -->
-
-<!-- print(p2) -->
-
-<!-- summary(var_df$PM2.5.var) -->
-
-<!-- ``` -->
-
-<!-- ## **Análisis inicial de PM10** -->
-
-<!-- Al igual que la variable PM2.5 se realizara el análisis descriptivo geoespacial para el periodo 2022 para el material particulado en el aire con un diámetro aerodinámico menor o igual a 10 micrómetros (PM10) del cual se dispone del promedio anual proveniente de 19 estaciones de monitoreo dispersas por la ciudad. -->
-
-<!-- ```{r} -->
-
-<!-- #| include: false -->
-
-<!-- datos <- read.csv("calidad_aire.csv", header = T) -->
-
-<!-- bogota <- datos %>%  -->
-
-<!--   filter(Código.del.Departamento == 11) -->
-
-<!-- PM10 <- bogota %>% -->
-
-<!--   filter(Variable == "PM10") %>% -->
-
-<!--   rename(ID = ID.Estacion, -->
-
-<!--          Anio = Año) %>% -->
-
-<!--   group_by(ID, Anio, Variable) %>% -->
-
-<!--   mutate(Valor = row_number()) %>% -->
-
-<!--   ungroup() %>% -->
-
-<!--   pivot_wider(id_cols = c("ID", "Latitud", "Longitud", "Anio", "Valor"), -->
-
-<!--               names_from = "Variable", -->
-
-<!--               values_from = "Promedio") %>% -->
-
-<!--   select(-Valor) -->
-
-<!-- PM10_2022 <- PM10 %>% -->
-
-<!--   filter(Anio == 2022) -->
-
-<!-- # Pasándo a coordenadas proyectadas -->
-
-<!-- coords_geo <- SpatialPoints(cbind(PM10_2022$Longitud,  -->
-
-<!--                                   PM10_2022$Latitud), -->
-
-<!--                             proj4string = CRS("+proj=longlat +datum=WGS84")) -->
-
-<!-- data_aire_geo <- data.frame(coords_geo, PM10 = PM10_2022$PM10) -->
-
-<!-- CRS_UTM_CO <- CRS("+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs") -->
-
-<!-- coords_utm <- spTransform(coords_geo, CRS_UTM_CO) -->
-
-<!-- PM10_2022 <- data.frame(coords_utm, PM10 = PM10_2022$PM10) -->
-
-<!-- PM10_2022 <- PM10_2022 %>% -->
-
-<!--   rename( -->
-
-<!--     Longitud = coords.x1, -->
-
-<!--     Latitud = coords.x2 -->
-
-<!--   ) -->
-
-<!-- ``` -->
-
-<!-- ### Visualización valores registrados -->
-
-<!-- En la siguiente gráfica se observan los valores registrados por las estaciones de monitoreo para el periodo correspondiente, se observan que hay una mayor concentración de estaciones hacia la zona sur occidental de la ciudad y de igual forma en la zona mencionada se registraron los mayores registros (ilustrados por los puntos amarillos) de las partículas PM10 lo cual se puede estar vinculado a la presencia de zonas industriales en el sector de la Sevillana e igualmente al ser una de las entradas vehiculares de la ciudad -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- #| message: false -->
-
-<!-- #| warning: false -->
-
-<!-- PM10_2022sf <- st_as_sf(PM10_2022,  -->
-
-<!--                         coords = c("Longitud", "Latitud"), -->
-
-<!--                         crs = CRS_UTM_CO) -->
-
-<!-- ggplot(bogota_shp) + -->
-
-<!--   geom_sf(fill = "lightgray", color = "black") + -->
-
-<!--   geom_sf(data = PM10_2022sf, -->
-
-<!--           aes(color = PM10, size = PM10), -->
-
-<!--           alpha = 0.7, -->
-
-<!--           show.legend = c(color = TRUE, size = FALSE)) + -->
-
-<!-- scale_color_viridis_c(option = "plasma", name = "Valor") + -->
-
-<!--   labs(title = "Partículas PM10 en Bogotá año 2022", -->
-
-<!--        x = "Longitud", -->
-
-<!--        y = "Latitud") + -->
-
-<!--   theme_minimal() -->
-
-<!-- ``` -->
-
-<!-- ### Relación PM10 vs coordenadas espaciales -->
-
-<!-- ```{r} -->
-
-<!-- #| message: false -->
-
-<!-- #| warning: false -->
-
-<!-- #| include: false -->
-
-<!-- PM10_2022g <- as.geodata(PM10_2022, coords.col = 1:2, data.col = 4) -->
-
-<!-- ``` -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- plot.geodata(PM10_2022g) -->
-
-<!-- ``` -->
-
-<!-- En los gráficos donde se comparan los valores registrados de partículas PM10 y los ejes coordenados se observan que para la longitud hay un patrón decreciente, de igual forma se observa que posiblemente hay un valor atípico que puede influir en los análisis posteriores. En el caso de la relación de los registros y la latitud no se observa un patrón tan notorio como en el otro eje lo cual puede indicar que la latitud no influye tanto como lo que seria la longitud. -->
-
-<!-- ### Ajuste modelo de regresión -->
-
-<!-- Con el fin de extraer la tendencia del proceso espacial se ajustaron varios modelos de regresión del cual se concluyo que el modelo que tiene como único predictor a la longitud es el mas idóneo dado que comparado con los otros modelos contemplados es el mas parsimonio. Los modelos contemplados y sus resultados fueron los siguientes: -->
-
-<!-- -   $PM10=Longitud + Latitud + [Longitud*Latitud] +\epsilon$ -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- summary(lm(PM10 ~ Longitud + Latitud + I(Longitud*Latitud), data = PM10_2022)) -->
-
-<!-- ``` -->
-
-<!-- -   $PM10=Longitud + Latitud +\epsilon$ -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- summary(lm(PM10 ~ Longitud + Latitud, data = PM10_2022)) -->
-
-<!-- ``` -->
-
-<!-- El modelo que fue seleccionado -->
-
-<!-- $$ -->
-
-<!-- PM10=Latitud + \epsilon -->
-
-<!-- $$ -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- summary(lm(PM10 ~ Longitud, data = PM10_2022)) -->
-
-<!-- # Es el modelo con mejor R^2 ajustado -->
-
-<!-- lm_PM10 <- lm(PM10 ~ Longitud, data = PM10_2022) -->
-
-<!-- PM10_2022$residuales <- lm_PM10$residuals -->
-
-<!-- ``` -->
-
-<!-- Aunque el primer modelo que contempla como variables explicativas tanto a la latitud como a la longitud y la iteracción entre estas presento un $R^2$ ajustado superior al de los otros modelos, se tiene que ninguna de las variables de son significativas por lo cual como se menciono anteriormente se opto por el modelo que contempla únicamente como variable explicativa a la longitud puesto que presento un $R^2$ ajustado cercano al del primer modelo y que se tiene que la variable es significativa. -->
-
-<!-- ### Análisis de residuos -->
-
-<!-- Después de haberse realizado el ajuste del modelo de tendencia, se observa que los residuos estandarizados no presentan un patrón definido, lo cual indica que el modelo de regresión seleccionado en efecto capturo la tendencia del proceso. -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- par(mfrow = c(1, 3)) -->
-
-<!-- # Residuales estandarizados vs Coordenada Este -->
-
-<!-- plot(PM10_2022$Longitud, rstandard(lm_PM10), -->
-
-<!--      main = "Residuales vs Longitud", -->
-
-<!--      xlab = "Longitud", -->
-
-<!--      ylab = "Residuales estandarizados", -->
-
-<!--      pch = 16, col = "darkblue") -->
-
-<!-- # Residuales estandarizados vs Coordenada Norte -->
-
-<!-- plot(PM10_2022$Latitud, rstandard(lm_PM10), -->
-
-<!--      main = "Residuales vs Latitud", -->
-
-<!--      xlab = "Latitud", -->
-
-<!--      ylab = "Residuales estandarizados", -->
-
-<!--      pch = 16, col = "darkgreen") -->
-
-<!-- # Boxplot de los residuales estandarizados -->
-
-<!-- boxplot(rstandard(lm_PM10), -->
-
-<!--         main = "Distribución de Residuales", -->
-
-<!--         ylab = "Residuales estandarizados", -->
-
-<!--         col = "red", -->
-
-<!--         ylim = c(-2, 3)) -->
-
-<!-- par(mfrow = c(1, 1)) -->
-
-<!-- ``` -->
-
-<!-- Aunque en el boxplot se observa que no hay presencia de datos atípicos, en los gráficos de los residuales estandarizados vs cada uno de los ejes se señala la presencia de un valor que se aleja significativamente del comportamiento del restante de valores lo cual coincide con lo observado anteriormente en los gráficos de las partículas PM10 por lo tanto se decide que se hará uso de estimadores robustos con el fin disminuir la posible influencia de dicho valor en los análisis posteriores. -->
-
-<!-- ### Visualización espacial de residuos -->
-
-<!-- A continuación se gráfican los residuos en el espacio, en donde a diferencia de los valores PM10 no hay presencia de clusters notorios y de igual forma se removió la tendencia originalmente presenciada puesto que los residuos varían al rededor de 0 en ambos ejes espaciales. -->
-
-<!-- ```{r} -->
-
-<!-- #| include: false -->
-
-<!-- # Datos centrados  -->
-
-<!-- PM10_2022resg <- as.geodata(PM10_2022, coords.col = 1:2, data.col = 5) -->
-
-<!-- ``` -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- plot.geodata(PM10_2022resg, scatter3d = TRUE) -->
-
-<!-- ``` -->
-
-<!-- ### Estimación del semivariograma y uso de un estimador robusto -->
-
-<!-- Se realizara la estimación del semivariograma empírico de los residuos con el fin de analizar la dependencia espacial de dichos valores. -->
-
-<!-- ```{r} -->
-
-<!-- #| message: false -->
-
-<!-- #| warning: false -->
-
-<!-- #| include: false -->
-
-<!-- variPM10_2022 <- variog(PM10_2022resg, estimator.type = "modulus") -->
-
-<!-- ``` -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- #| message: false -->
-
-<!-- #| warning: false -->
-
-<!-- #| fig-cap: "Variograma clasico y robusto de los residuales de PM10" -->
-
-<!-- # Variograma PM10 -->
-
-<!-- par(mfrow = c(1, 2)) -->
-
-<!-- plot(variog(PM10_2022resg)) -->
-
-<!-- plot(variog(PM10_2022resg, estimator.type = "modulus")) -->
-
-<!-- ``` -->
-
-<!-- Aunque como se menciono anteriormente sobre el uso de estimadores robustos se presenta a la izquierda el semivariograma estimado usando el estimador clasico, a la derecha se presenta el semivariograma estimado usando el estimador robusto definido como: -->
-
-<!-- $$ -->
-
-<!-- \tilde{\gamma}(\mathbf{h}) = \frac{1}{2 \left( 0.457 + \frac{0.494}{|N(\mathbf{h})|} + \frac{0.045}{|N^2(\mathbf{h})|} \right)} \left( \frac{\left( \sum_{N(\mathbf{h})} |Z(\mathbf{s} + \mathbf{h}) - Z(\mathbf{s})|^{1/2} \right)^4}{|N(\mathbf{h})|} \right) -->
-
-<!-- $$ -->
-
-<!-- El cual corresponde al estimador resistente a datos atípicos utilizando el promedio, propuesto por Cressie. -->
-
-<!-- ### Ajuste de modelos teóricos al semivariograma empírico -->
-
-<!-- Haciendo uso de la función eyefit del paquete geoR se concluyo visualmente que los tres modelos que se ajustaban al modelo empírico fueron el modelo exponencial, el esférico y el gaussiano -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- # Ajuste por eyefit -->
-
-<!-- expPM10_2022 <- variofit(variPM10_2022, -->
-
-<!--                     cov.model = "exponential", -->
-
-<!--                     ini = c(55, 15000), -->
-
-<!--                     fix.nugget = TRUE, -->
-
-<!--                     nugget = 1, -->
-
-<!--                     weights = "cressie") -->
-
-<!-- sphPM10_2022 <- variofit(variPM10_2022, -->
-
-<!--                          cov.model = "spherical", -->
-
-<!--                          ini = c(40, 5000), -->
-
-<!--                          fix.nugget = TRUE, -->
-
-<!--                          nugget = 10, -->
-
-<!--                          weights = "cressie") -->
-
-<!-- gauPM10_2022 <- variofit(variPM10_2022, -->
-
-<!--                          cov.model = "gaussian", -->
-
-<!--                          ini = c(45, 9000), -->
-
-<!--                          fix.nugget = TRUE, -->
-
-<!--                          nugget = 0, -->
-
-<!--                          weights = "cressie") -->
-
-<!-- ``` -->
-
-<!-- Los tres modelos sugeridos se ajustaron con efecto pepita libre fijo. A continuación se muestran los tres modelos propuestos superpuestos al semivariograma empírico -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- plot(variPM10_2022$u, variPM10_2022$v, -->
-
-<!--      xlab = "Distancia (h)", -->
-
-<!--      ylab = "Semivarianza", -->
-
-<!--      cex.lab = 1.3, -->
-
-<!--      cex.axis = 1.2, -->
-
-<!--      main = "Ajuste de Modelos Teóricos al Semivariograma Empírico", -->
-
-<!--      col.main = 4, -->
-
-<!--      cex.main = 1.3, -->
-
-<!--      pch = 20) -->
-
-<!-- lines(expPM10_2022, col = "blue", lwd = 2, lty = 1) -->
-
-<!-- lines(sphPM10_2022, col = "red", lwd = 2, lty = 2) -->
-
-<!-- lines(gauPM10_2022, col = "purple", lwd = 2, lty = 3) -->
-
-<!-- legend("topright", -->
-
-<!--        legend = c("Exponencial", "Esferico", "Gaussiano"), -->
-
-<!--        col = c("blue", "red", "purple"), -->
-
-<!--        lty = 1:3, -->
-
-<!--        lwd = 2, -->
-
-<!--        bty = "n", -->
-
-<!--        text.col = "black") -->
-
-<!-- ``` -->
-
-<!-- Se observa que los tres modelos se pueden estar viendo influenciados posiblemente por los valores significativamente altos que se encuentra en los primeros lags. Siendo el gaussiano el que menos se ve influenciado visualmente. -->
-
-<!-- Con el fin de elegir el mejor modelo de los tres sugeridos se hace uso del RMSE para cada uno, dando como resultado los siguientes valores: -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- # Calcular RMSE para cada ajuste -->
-
-<!-- rmse1 <- calc_rmse(variPM10_2022, expPM10_2022) -->
-
-<!-- rmse2 <- calc_rmse(variPM10_2022, sphPM10_2022) -->
-
-<!-- rmse3 <- calc_rmse(variPM10_2022, gauPM10_2022) -->
-
-<!-- # Mostrar resultados -->
-
-<!-- rmse_comparacion <- c(Exponencial = rmse1, Esferico = rmse2, Gaussiano = rmse3) -->
-
-<!-- knitr::kable(rmse_comparacion, col.names = c("Modelo", "RMSE")) -->
-
-<!-- ``` -->
-
-<!-- Dado que el modelo exponencial es el modelos que presenta el menor RSME se selecciona dicho modelo. -->
-
-<!-- ```{r} -->
-
-<!-- #| echo: false -->
-
-<!-- plot(variPM10_2022$u, variPM10_2022$v, -->
-
-<!--      xlab = "Distancia (h)", -->
-
-<!--      ylab = "Semivarianza", -->
-
-<!--      cex.lab = 1.3, -->
-
-<!--      cex.axis = 1.2, -->
-
-<!--      main = "Ajuste de Modelos exponencial -->
-
-<!--      al Semivariograma Empírico", -->
-
-<!--      col.main = 4, -->
-
-<!--      cex.main = 1.3, -->
-
-<!--      pch = 20) -->
-
-<!-- lines(expPM10_2022, col = "blue", lwd = 2, lty = 1) -->
-
-<!-- legend("topright", -->
-
-<!--        legend = "Exponencial", -->
-
-<!--        col = "blue", -->
-
-<!--        lty = 1, -->
-
-<!--        lwd = 2, -->
-
-<!--        bty = "n", -->
-
-<!--        text.col = "black") -->
-
-<!-- ``` -->
+- Secretaría Distrital de Ambiente. (2023). Informe Anual de la Red de Monitoreo de Calidad del Aire de Bogotá – RMCAB. Año 2022. Bogotá D.C.: Alcaldía Mayor de Bogotá. https://www.ambientebogota.gov.co/web/sda/informes-anuales
