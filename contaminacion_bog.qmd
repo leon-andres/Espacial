@@ -2119,6 +2119,7 @@ k4
 ```
 
 ```{r}
+#| eval: false
 #| include: false
 #################################################################
 ######### Modelo lineal de corregionalización sin Gstat #########
