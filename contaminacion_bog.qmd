@@ -1,6 +1,6 @@
 ---
 title: "Análisis espacial de la concentración de PM2.5 y PM10 en estaciones de monitoreo de calidad del aire en Bogotá"
-date: 17-05-2025
+date: 06-21-2025
 author: 
   - "Jerson Vargas Galeano"
   - "Andres David Leon Hernandez"
