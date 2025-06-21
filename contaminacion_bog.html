@@ -23,6 +23,40 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -1098,6 +1132,366 @@ window.Quarto = {
 <p>En términos de resultados reales, se identificó una clara concentración de contaminantes hacia el occidente de Bogotá, en especial en localidades con alta densidad poblacional, tráfico vehicular e industrias. Por el contrario, las zonas nororientales y surorientales —más cercanas a los cerros orientales o con menor actividad urbana— mostraron niveles considerablemente más bajos de contaminación. Esta distribución no es casual: responde a factores estructurales como la ubicación de fuentes emisoras, la topografía, la dirección de los vientos y las brechas en infraestructura ambiental, como la baja densidad de estaciones en ciertas zonas rurales o periféricas.</p>
 <p>Los mapas de incertidumbre también revelaron que, mientras las zonas cercanas a estaciones tienen predicciones más confiables, otras regiones —especialmente en el suroriente— presentan alta incertidumbre, lo que sugiere la necesidad de reforzar el monitoreo en esos sectores para garantizar una cobertura equitativa y eficaz en el control ambiental.</p>
 <p>En conjunto, este estudio no solo permitió describir la calidad del aire con gran detalle, sino también identificar zonas prioritarias para la intervención y sentar bases técnicas sólidas para futuras decisiones en salud pública, planeación urbana y justicia ambiental. Además, deja en evidencia que, con una buena estrategia de modelación espacial, es posible ampliar el conocimiento más allá de los puntos medidos, cubriendo vacíos críticos para la gestión territorial sostenible.</p>
+</section>
+<section id="análisis-espacio---temporal-pm2.5" class="level1">
+<h1>ANÁLISIS ESPACIO - TEMPORAL PM2.5</h1>
+<p>El siguiente análisis corresponde al contaminante PM2.5 en la ciudad de Bogotá durante el período comprendido entre 2020 y 2021. Se cuenta con datos diarios recogidos en 19 estaciones de monitoreo distribuidas a lo largo de la ciudad. El objetivo principal de este estudio es realizar un análisis espacio-temporal para caracterizar la distribución y variabilidad de las concentraciones de PM2.5. Para ello, se empleará la técnica de interpolación geoestadística de kriging espacial, que permitirá estimar los niveles de este contaminante en áreas no monitoreadas y generar mapas de distribución que faciliten la identificación de las zonas más afectadas y los patrones de dispersión a lo largo del tiempo.</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Reading layer `loca' from data source 
+  `H:\My Drive\Espacial\Parciales\mapa\loca.shp' using driver `ESRI Shapefile'
+Simple feature collection with 20 features and 6 fields
+Geometry type: POLYGON
+Dimension:     XY
+Bounding box:  xmin: -74.44978 ymin: 3.73103 xmax: -73.98653 ymax: 4.836779
+Geodetic CRS:  MAGNA-SIRGAS</code></pre>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-56-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="exploración-de-la-relación-entre-pm2.5-las-coordenadas-espaciales-y-temporalidad" class="level2">
+<h2 class="anchored" data-anchor-id="exploración-de-la-relación-entre-pm2.5-las-coordenadas-espaciales-y-temporalidad">Exploración de la relación entre PM2.5, las coordenadas espaciales y temporalidad</h2>
+<p>Para iniciar el análisis, se realizó una exploración visual de los datos de PM2.5. Se generaron gráficos de dispersión para examinar la relación entre las concentraciones de PM2.5 y sus coordenadas espaciales (Este y Norte), así como su evolución a lo largo del tiempo.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-57-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>La figura presenta tres gráficos que ilustran las relaciones iniciales en los datos. Los dos gráficos superiores muestran la concentración de PM2.5 ​ frente a las coordenadas geográficas (Este y Norte), en el cual no se observa una tendencia lineal clara sin embargo, los datos se presentan en conglomerados verticales, que corresponden a las ubicaciones fijas de las estaciones de monitoreo. Se aprecian variaciones significativas en los niveles de PM2.5 ​ en cada una de estas ubicaciones, lo que sugiere que la contaminación no es homogénea en la ciudad y justifica el uso de métodos de interpolación espacial como el kriging. El gráfico inferior muestra la serie temporal de las mediciones de PM2.5, en dicho gráfico se puede identificar un patrón estacional. Los niveles de PM2.5 ​ parecen ser más bajos y estables durante noviembre y diciembre, mientras que se observa un incremento general en las concentraciones y en la frecuencia de picos elevados durante enero y, especialmente, febrero. Este comportamiento se puede explicar por las condiciones meteorológicas de Bogotá, donde los primeros meses del año suelen ser más secos, favoreciendo la acumulación de contaminantes.</p>
+</section>
+<section id="ajuste-del-modelo-de-tendencia-mediante-regresión" class="level2">
+<h2 class="anchored" data-anchor-id="ajuste-del-modelo-de-tendencia-mediante-regresión">Ajuste del modelo de tendencia mediante regresión</h2>
+<p>Se ajusto un modelo de regresión lineal para describir cómo las concentraciones de PM2.5 ​ varían en función de su ubicación geográfica. El modelo contemplado es el siguiente:</p>
+<p><span class="math display">\[
+PM2.5 = \beta_0+\beta_1\cdot este + \beta_2\cdot norte+\beta_3\cdot \sin(este)+\beta_4\cdot\sin(norte)
+\]</span></p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Resumen del modelo lineal</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">term</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">std.error</th>
+<th style="text-align: right;">statistic</th>
+<th style="text-align: right;">p.value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: right;">321.4733</td>
+<td style="text-align: right;">25.2480</td>
+<td style="text-align: right;">12.7326</td>
+<td style="text-align: right;">0.0000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">sin(este)</td>
+<td style="text-align: right;">-2.3138</td>
+<td style="text-align: right;">0.3465</td>
+<td style="text-align: right;">-6.6768</td>
+<td style="text-align: right;">0.0000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">sin(norte)</td>
+<td style="text-align: right;">-0.6044</td>
+<td style="text-align: right;">0.3154</td>
+<td style="text-align: right;">-1.9161</td>
+<td style="text-align: right;">0.0555</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">este</td>
+<td style="text-align: right;">-0.0004</td>
+<td style="text-align: right;">0.0000</td>
+<td style="text-align: right;">-8.1110</td>
+<td style="text-align: right;">0.0000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">norte</td>
+<td style="text-align: right;">-0.0001</td>
+<td style="text-align: right;">0.0000</td>
+<td style="text-align: right;">-4.2091</td>
+<td style="text-align: right;">0.0000</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="análisis-gráfico-de-los-residuos-estandarizados-2" class="level2">
+<h2 class="anchored" data-anchor-id="análisis-gráfico-de-los-residuos-estandarizados-2">Análisis gráfico de los residuos estandarizados</h2>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-59-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>El análisis de los residuales estandarizados respecto a las coordenadas Este y Norte muestra una distribución aleatoria sin patrones espaciales evidentes, lo que indica una correcta extracción de la tendencia. El diagrama de caja corrobora esto al presentar una dispersión centrada en cero; los valores atípicos observados se consideran parte de la variabilidad natural del fenómeno ambiental en estudio.</p>
+</section>
+<section id="estimación-del-semivariograma-1" class="level2">
+<h2 class="anchored" data-anchor-id="estimación-del-semivariograma-1">Estimación del semivariograma</h2>
+<p>Para analizar la estructura de dependencia espacial y temporal de los residuales de PM2.5 ​, se procedió a calcular el variograma empírico espacio-temporal.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-60-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-60-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Este gráfico tridimensional ilustra la estructura de dependencia del PM2.5. La superficie ascendente muestra que la correlación entre mediciones se debilita a medida que aumenta la distancia o los días de separación.</p>
+<section id="ajuste-de-modelos-teóricos-al-semivariograma-empírico-2" class="level3">
+<h3 class="anchored" data-anchor-id="ajuste-de-modelos-teóricos-al-semivariograma-empírico-2">Ajuste de modelos teóricos al semivariograma empírico</h3>
+<p>A continuación se realizo el ajuste de modelos teóricos, se eligió un modelo inicial donde el componente espacial se usa un modelo “Hole” y el componente temporal un modelo Pentaesferico.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-61-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="contaminacion_bog_files/figure-html/unnamed-chunk-61-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="kriging-espacio-tiempo-de-pm2.5" class="level2">
+<h2 class="anchored" data-anchor-id="kriging-espacio-tiempo-de-pm2.5">Kriging espacio tiempo de PM2.5</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Asegurarse de que el shapefile esté en CRS correcto</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>colom_shp <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(colom_shp, <span class="at">crs =</span> CRS_UTM_CO)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Obtener bounding box del shapefile como objeto sf</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>bbox_colom <span class="ot">&lt;-</span> <span class="fu">st_bbox</span>(colom_shp)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Crear malla de predicción en todo el país (en grilla regular)</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>x_range <span class="ot">&lt;-</span> <span class="fu">seq</span>(bbox_colom[<span class="st">"xmin"</span>], bbox_colom[<span class="st">"xmax"</span>], <span class="at">by =</span> <span class="dv">500</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>y_range <span class="ot">&lt;-</span> <span class="fu">seq</span>(bbox_colom[<span class="st">"ymin"</span>], bbox_colom[<span class="st">"ymax"</span>], <span class="at">by =</span> <span class="dv">500</span>)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>grilla_espacio <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">este =</span> x_range, <span class="at">norte =</span> y_range)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Convertir grilla a sf para filtrar solo puntos dentro de Colombia</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>grilla_sf <span class="ot">&lt;-</span> <span class="fu">st_as_sf</span>(grilla_espacio, <span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"este"</span>, <span class="st">"norte"</span>), <span class="at">crs =</span> CRS_UTM_CO)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>grilla_dentro <span class="ot">&lt;-</span> <span class="fu">st_join</span>(grilla_sf, colom_shp, <span class="at">join =</span> st_within, <span class="at">left =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Convertir de nuevo a Spatial (lo que requiere krigeST)</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>grilla_sp <span class="ot">&lt;-</span> <span class="fu">as</span>(grilla_dentro, <span class="st">"Spatial"</span>)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="fu">gridded</span>(grilla_sp) <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="co"># 6. Crear secuencia de tiempo</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>tiempos_pred <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fu">as.POSIXct</span>(<span class="st">"2020-10-16"</span>), <span class="fu">as.POSIXct</span>(<span class="st">"2021-03-31"</span>), <span class="at">by =</span> <span class="st">"10 days"</span>)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="co"># 7. Malla espacio-temporal</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>grilla_st <span class="ot">&lt;-</span> <span class="fu">STF</span>(<span class="at">sp =</span> grilla_sp, <span class="at">time =</span> tiempos_pred)</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a><span class="co"># EXTRA: Asegurar que el CRS de st_data@sp esté definido (si no lo tiene, asignarlo)</span></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">is.na</span>(<span class="fu">proj4string</span>(st_data<span class="sc">@</span>sp))) {</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">proj4string</span>(st_data<span class="sc">@</span>sp) <span class="ot">&lt;-</span> CRS_UTM_CO</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="co"># EXTRA: Asegurar que el CRS de st_data es el mismo que el de grilla_st</span></span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">identicalCRS</span>(st_data<span class="sc">@</span>sp, grilla_sp)) {</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>  st_data<span class="sc">@</span>sp <span class="ot">&lt;-</span> <span class="fu">spTransform</span>(st_data<span class="sc">@</span>sp, CRS_UTM_CO)</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a><span class="fu">gc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>           used  (Mb) gc trigger  (Mb) max used  (Mb)
+Ncells  4402771 235.2    7298872 389.9  7298872 389.9
+Vcells 20100473 153.4   38133293 291.0 38133293 291.0</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 8. Ejecutar kriging</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>kriging_result <span class="ot">&lt;-</span> <span class="fu">krigeST</span>(</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  residuals <span class="sc">~</span> <span class="dv">1</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> st_data,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">newdata =</span> grilla_st,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">modelList =</span> model_fit</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">gc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>           used  (Mb) gc trigger   (Mb)  max used   (Mb)
+Ncells  4408512 235.5    7298872  389.9   7298872  389.9
+Vcells 19321225 147.5  242478041 1850.0 303077071 2312.3</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>graficar_kriging_con_tendencia <span class="ot">&lt;-</span> <span class="cf">function</span>(fechas, kriging_result, fit1, colom_shp) {</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">library</span>(dplyr)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">library</span>(ggplot2)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Paleta de 20 colores ordenados (oscuro a claro)</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  colores_ordenados <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"#000000"</span>, <span class="st">"#2E0854"</span>, <span class="st">"#4B0082"</span>, <span class="st">"#0000CD"</span>, <span class="st">"#1E90FF"</span>,</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"#00CED1"</span>, <span class="st">"#00FF7F"</span>, <span class="st">"#7FFF00"</span>, <span class="st">"#ADFF2F"</span>, <span class="st">"#FFFF00"</span>,</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"#FFD700"</span>, <span class="st">"#FFA500"</span>, <span class="st">"#FF8C00"</span>, <span class="st">"#FF6347"</span>, <span class="st">"#FF4500"</span>,</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"#FF0000"</span>, <span class="st">"#DC143C"</span>, <span class="st">"#FF69B4"</span>, <span class="st">"#FFC0CB"</span>, <span class="st">"#FFFFFF"</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  fechas_xts <span class="ot">&lt;-</span> <span class="fu">index</span>(kriging_result<span class="sc">@</span>time)</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- 1. Recolectar todos los valores PM25_estimado para calcular cuantiles ---</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  todos_est <span class="ot">&lt;-</span> <span class="fu">data.frame</span>()</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (f <span class="cf">in</span> fechas) {</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    fecha_objetivo <span class="ot">&lt;-</span> <span class="fu">as.POSIXct</span>(f)</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span>fecha_objetivo <span class="sc">%in%</span> fechas_xts) <span class="cf">next</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    kriging_en_fecha <span class="ot">&lt;-</span> kriging_result[, fecha_objetivo]</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>    coords <span class="ot">&lt;-</span> kriging_en_fecha<span class="sc">@</span>coords</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    valores <span class="ot">&lt;-</span> kriging_en_fecha<span class="sc">@</span>data<span class="sc">$</span>var1.pred</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>    df_tmp <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> coords[, <span class="dv">1</span>], <span class="at">y =</span> coords[, <span class="dv">2</span>])</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>    df_tmp<span class="sc">$</span>este <span class="ot">&lt;-</span> df_tmp<span class="sc">$</span>x</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>    df_tmp<span class="sc">$</span>norte <span class="ot">&lt;-</span> df_tmp<span class="sc">$</span>y</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>    df_tmp<span class="sc">$</span>layer <span class="ot">&lt;-</span> valores</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>    df_tmp<span class="sc">$</span>PM25_estimado <span class="ot">&lt;-</span> df_tmp<span class="sc">$</span>layer <span class="sc">+</span> <span class="fu">predict</span>(fit1, <span class="at">newdata =</span> df_tmp[, <span class="fu">c</span>(<span class="st">"este"</span>, <span class="st">"norte"</span>)])</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>    todos_est <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(todos_est, df_tmp)</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- 2. Calcular los 20 cuantiles y etiquetas ---</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>  breaks <span class="ot">&lt;-</span> <span class="fu">quantile</span>(todos_est<span class="sc">$</span>PM25_estimado, <span class="at">probs =</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="at">length.out =</span> <span class="dv">21</span>), <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Crear etiquetas del tipo "[a, b)"</span></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>  etiquetas <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">20</span>, <span class="cf">function</span>(i) {</span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste0</span>(<span class="st">"["</span>, <span class="fu">round</span>(breaks[i], <span class="dv">1</span>), <span class="st">", "</span>, <span class="fu">round</span>(breaks[i <span class="sc">+</span> <span class="dv">1</span>], <span class="dv">1</span>), <span class="st">")"</span>)</span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- 3. Función para asignar tramo y color ---</span></span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>  asignar_tramo <span class="ot">&lt;-</span> <span class="cf">function</span>(valor) {</span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>    idx <span class="ot">&lt;-</span> <span class="fu">findInterval</span>(valor, breaks, <span class="at">rightmost.closed =</span> <span class="cn">TRUE</span>, <span class="at">all.inside =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>    etiquetas[idx]</span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- 4. Graficar cada fecha ---</span></span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (f <span class="cf">in</span> fechas) {</span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a>    fecha_objetivo <span class="ot">&lt;-</span> <span class="fu">as.POSIXct</span>(f)</span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span>fecha_objetivo <span class="sc">%in%</span> fechas_xts) {</span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>      <span class="fu">cat</span>(<span class="st">"Fecha no disponible:"</span>, f, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>      <span class="cf">next</span></span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">"Graficando:"</span>, f, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a>    kriging_en_fecha <span class="ot">&lt;-</span> kriging_result[, fecha_objetivo]</span>
+<span id="cb10-56"><a href="#cb10-56" aria-hidden="true" tabindex="-1"></a>    coords <span class="ot">&lt;-</span> kriging_en_fecha<span class="sc">@</span>coords</span>
+<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a>    valores <span class="ot">&lt;-</span> kriging_en_fecha<span class="sc">@</span>data<span class="sc">$</span>var1.pred</span>
+<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a>    kriging_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> coords[, <span class="dv">1</span>], <span class="at">y =</span> coords[, <span class="dv">2</span>], <span class="at">layer =</span> valores)</span>
+<span id="cb10-59"><a href="#cb10-59" aria-hidden="true" tabindex="-1"></a>    kriging_df<span class="sc">$</span>este <span class="ot">&lt;-</span> kriging_df<span class="sc">$</span>x</span>
+<span id="cb10-60"><a href="#cb10-60" aria-hidden="true" tabindex="-1"></a>    kriging_df<span class="sc">$</span>norte <span class="ot">&lt;-</span> kriging_df<span class="sc">$</span>y</span>
+<span id="cb10-61"><a href="#cb10-61" aria-hidden="true" tabindex="-1"></a>    kriging_df<span class="sc">$</span>PM25_estimado <span class="ot">&lt;-</span> kriging_df<span class="sc">$</span>layer <span class="sc">+</span> <span class="fu">predict</span>(fit1, <span class="at">newdata =</span> kriging_df[, <span class="fu">c</span>(<span class="st">"este"</span>, <span class="st">"norte"</span>)])</span>
+<span id="cb10-62"><a href="#cb10-62" aria-hidden="true" tabindex="-1"></a>    kriging_df <span class="ot">&lt;-</span> <span class="fu">na.omit</span>(kriging_df)</span>
+<span id="cb10-63"><a href="#cb10-63" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb10-64"><a href="#cb10-64" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Asignar tramo (cuantil) como factor</span></span>
+<span id="cb10-65"><a href="#cb10-65" aria-hidden="true" tabindex="-1"></a>    kriging_df<span class="sc">$</span>tramo <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">asignar_tramo</span>(kriging_df<span class="sc">$</span>PM25_estimado), <span class="at">levels =</span> etiquetas)</span>
+<span id="cb10-66"><a href="#cb10-66" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb10-67"><a href="#cb10-67" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Gráfico con leyenda manual</span></span>
+<span id="cb10-68"><a href="#cb10-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-69"><a href="#cb10-69" aria-hidden="true" tabindex="-1"></a>    p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb10-70"><a href="#cb10-70" aria-hidden="true" tabindex="-1"></a>      <span class="fu">geom_point</span>(<span class="at">data =</span> kriging_df, <span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">y =</span> y, <span class="at">color =</span> tramo), <span class="at">size =</span> <span class="fl">1.8</span>, <span class="at">alpha =</span> <span class="fl">0.85</span>) <span class="sc">+</span></span>
+<span id="cb10-71"><a href="#cb10-71" aria-hidden="true" tabindex="-1"></a>      <span class="fu">scale_color_manual</span>(</span>
+<span id="cb10-72"><a href="#cb10-72" aria-hidden="true" tabindex="-1"></a>        <span class="at">values =</span> <span class="fu">setNames</span>(colores_ordenados, etiquetas),</span>
+<span id="cb10-73"><a href="#cb10-73" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> <span class="st">"PM2.5 estimado (µg/m³)"</span></span>
+<span id="cb10-74"><a href="#cb10-74" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">+</span></span>
+<span id="cb10-75"><a href="#cb10-75" aria-hidden="true" tabindex="-1"></a>      <span class="fu">geom_sf</span>(<span class="at">data =</span> colom_shp, <span class="at">fill =</span> <span class="cn">NA</span>, <span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb10-76"><a href="#cb10-76" aria-hidden="true" tabindex="-1"></a>      <span class="fu">coord_sf</span>() <span class="sc">+</span></span>
+<span id="cb10-77"><a href="#cb10-77" aria-hidden="true" tabindex="-1"></a>      <span class="fu">labs</span>(</span>
+<span id="cb10-78"><a href="#cb10-78" aria-hidden="true" tabindex="-1"></a>        <span class="at">title =</span> <span class="fu">paste</span>(<span class="st">"PM2.5 estimado (por cuantiles) -"</span>, f),</span>
+<span id="cb10-79"><a href="#cb10-79" aria-hidden="true" tabindex="-1"></a>        <span class="at">x =</span> <span class="st">"Este"</span>, <span class="at">y =</span> <span class="st">"Norte"</span></span>
+<span id="cb10-80"><a href="#cb10-80" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">+</span></span>
+<span id="cb10-81"><a href="#cb10-81" aria-hidden="true" tabindex="-1"></a>      <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb10-82"><a href="#cb10-82" aria-hidden="true" tabindex="-1"></a>      <span class="fu">theme</span>(</span>
+<span id="cb10-83"><a href="#cb10-83" aria-hidden="true" tabindex="-1"></a>        <span class="at">legend.position =</span> <span class="st">"right"</span>,</span>
+<span id="cb10-84"><a href="#cb10-84" aria-hidden="true" tabindex="-1"></a>        <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">hjust =</span> <span class="fl">0.5</span>),</span>
+<span id="cb10-85"><a href="#cb10-85" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">10</span>)</span>
+<span id="cb10-86"><a href="#cb10-86" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb10-87"><a href="#cb10-87" aria-hidden="true" tabindex="-1"></a>    <span class="fu">print</span>(p)</span>
+<span id="cb10-88"><a href="#cb10-88" aria-hidden="true" tabindex="-1"></a>    <span class="fu">Sys.sleep</span>(<span class="dv">2</span>)</span>
+<span id="cb10-89"><a href="#cb10-89" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb10-90"><a href="#cb10-90" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-91"><a href="#cb10-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-92"><a href="#cb10-92" aria-hidden="true" tabindex="-1"></a>fechas_deseadas <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb10-93"><a href="#cb10-93" aria-hidden="true" tabindex="-1"></a>  <span class="st">"2020-10-16"</span>, <span class="st">"2020-10-26"</span>, <span class="st">"2020-11-05"</span>, <span class="st">"2020-11-15"</span>,</span>
+<span id="cb10-94"><a href="#cb10-94" aria-hidden="true" tabindex="-1"></a>  <span class="st">"2020-11-25"</span>, <span class="st">"2020-12-05"</span>, <span class="st">"2020-12-15"</span>, <span class="st">"2020-12-25"</span>,</span>
+<span id="cb10-95"><a href="#cb10-95" aria-hidden="true" tabindex="-1"></a>  <span class="st">"2021-01-04"</span>, <span class="st">"2021-01-14"</span>, <span class="st">"2021-01-24"</span>, <span class="st">"2021-02-03"</span>,</span>
+<span id="cb10-96"><a href="#cb10-96" aria-hidden="true" tabindex="-1"></a>  <span class="st">"2021-02-13"</span>, <span class="st">"2021-02-23"</span>, <span class="st">"2021-03-05"</span>, <span class="st">"2021-03-15"</span></span>
+<span id="cb10-97"><a href="#cb10-97" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" role="tab" aria-controls="tabset-1-1" aria-selected="true" href="">2020-10-16</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" role="tab" aria-controls="tabset-1-2" aria-selected="false" href="">2020-10-26</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-3" role="tab" aria-controls="tabset-1-3" aria-selected="false" href="">2020-11-05</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-4-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-4" role="tab" aria-controls="tabset-1-4" aria-selected="false" href="">2020-11-15</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-5-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-5" role="tab" aria-controls="tabset-1-5" aria-selected="false" href="">2020-11-25</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-6-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-6" role="tab" aria-controls="tabset-1-6" aria-selected="false" href="">2020-12-05</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-7-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-7" role="tab" aria-controls="tabset-1-7" aria-selected="false" href="">2020-12-15</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-8-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-8" role="tab" aria-controls="tabset-1-8" aria-selected="false" href="">2020-12-25</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-9-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-9" role="tab" aria-controls="tabset-1-9" aria-selected="false" href="">2021-01-04</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-10-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-10" role="tab" aria-controls="tabset-1-10" aria-selected="false" href="">2021-01-14</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-11-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-11" role="tab" aria-controls="tabset-1-11" aria-selected="false" href="">2021-01-24</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-12-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-12" role="tab" aria-controls="tabset-1-12" aria-selected="false" href="">2021-02-03</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-13-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-13" role="tab" aria-controls="tabset-1-13" aria-selected="false" href="">2021-02-13</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-14-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-14" role="tab" aria-controls="tabset-1-14" aria-selected="false" href="">2021-02-23</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-15-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-15" role="tab" aria-controls="tabset-1-15" aria-selected="false" href="">2021-03-05</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-16-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-16" role="tab" aria-controls="tabset-1-16" aria-selected="false" href="">2021-03-15</a></li></ul>
+<div class="tab-content">
+<div id="tabset-1-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-1-1-tab">
+<p>Graficando: 2020-10-16 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-1.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-2-tab">
+<p>Graficando: 2020-10-26 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-2.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-3-tab">
+<p>Graficando: 2020-11-05 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-3.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-4" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-4-tab">
+<p>Graficando: 2020-11-15 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-4.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-5" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-5-tab">
+<p>Graficando: 2020-11-25 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-5.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-6" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-6-tab">
+<p>Graficando: 2020-12-05 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-6.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-7" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-7-tab">
+<p>Graficando: 2020-12-15 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-7.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-8" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-8-tab">
+<p>Graficando: 2020-12-25 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-8.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-9" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-9-tab">
+<p>Graficando: 2021-01-04 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-9.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-10" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-10-tab">
+<p>Graficando: 2021-01-14 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-10.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-11" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-11-tab">
+<p>Graficando: 2021-01-24 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-11.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-12" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-12-tab">
+<p>Graficando: 2021-02-03 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-12.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-13" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-13-tab">
+<p>Graficando: 2021-02-13 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-13.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-14" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-14-tab">
+<p>Graficando: 2021-02-23 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-14.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-15" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-15-tab">
+<p>Graficando: 2021-03-05 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-15.png" class="img-fluid" width="672"></p>
+</div>
+<div id="tabset-1-16" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-16-tab">
+<p>Graficando: 2021-03-15 <img src="contaminacion_bog_files/figure-html/mapas-pestañas-16.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</div>
+</section>
 </section>
 <section id="referencias" class="level1">
 <h1>REFERENCIAS</h1>

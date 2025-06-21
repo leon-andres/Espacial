@@ -68,7 +68,7 @@ p3 <- ggplot(PM2_5, aes(x = fecha, y = PM2.5)) +
 (p1 | p2) / p3
 
 
- fit1 <- lm(PM2.5 ~ sin(este) + sin(norte)+este+norte, data = PM2_5)
+fit1 <- lm(PM2.5 ~ sin(este) + sin(norte)+este+norte, data = PM2_5)
 PM2_5$residuales <- residuals(fit1)
 
 res1 <- PM2_5$residuales
@@ -151,7 +151,7 @@ v_st <- subset(v_st, np > 0)
 plot(v_st)
 
 plot(v_st, wireframe = TRUE, colorkey = TRUE,
-     main = "Semivariograma Espaciotemporal")
+     main = "Semivariograma Espacio-temporal")
 
 
 
