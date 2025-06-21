@@ -2396,6 +2396,7 @@ El siguiente análisis corresponde al contaminante PM2.5 en la ciudad de Bogotá
 #| echo: false
 #| message: false
 #| warning: false
+#| results: hide
 colom_shp <- suppressMessages(st_read("mapa/loca.shp"))  # Ocultar mensajes de st_read
 colom_shp <- st_transform(colom_shp[-9,], crs = "+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs")
 
@@ -2409,6 +2410,12 @@ PM2_5 <- read_xlsx("PM2_5.xlsx")
 # Para PM2.5
 PM2_5_sf <- st_as_sf(PM2_5, coords = c("este", "norte"), crs = CRS_UTM_CO)
 
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
 ggplot() +
   geom_sf(data = colom_shp, fill = "white", color = "black") +
   geom_sf(data = PM2_5_sf, aes(color = PM2.5), alpha = 0.8) +
@@ -2448,11 +2455,11 @@ p3 <- ggplot(PM2_5, aes(x = fecha, y = PM2.5)) +
 
 ```
 
-La figura presenta tres gráficos que ilustran las relaciones iniciales en los datos. Los dos gráficos superiores muestran la concentración de PM2.5 ​ frente a las coordenadas geográficas (Este y Norte), en el cual no se observa una tendencia lineal clara sin embargo, los datos se presentan en conglomerados verticales, que corresponden a las ubicaciones fijas de las estaciones de monitoreo. Se aprecian variaciones significativas en los niveles de PM2.5 ​ en cada una de estas ubicaciones, lo que sugiere que la contaminación no es homogénea en la ciudad y justifica el uso de métodos de interpolación espacial como el kriging. El gráfico inferior muestra la serie temporal de las mediciones de PM2.5, en dicho gráfico se puede identificar un patrón estacional. Los niveles de PM2.5 ​ parecen ser más bajos y estables durante noviembre y diciembre, mientras que se observa un incremento general en las concentraciones y en la frecuencia de picos elevados durante enero y, especialmente, febrero. Este comportamiento se puede explicar por las condiciones meteorológicas de Bogotá, donde los primeros meses del año suelen ser más secos, favoreciendo la acumulación de contaminantes.
+La figura presenta tres gráficos que ilustran las relaciones iniciales en los datos. Los dos gráficos superiores muestran la concentración de PM2.5 frente a las coordenadas geográficas (Este y Norte), en el cual no se observa una tendencia lineal clara sin embargo, los datos se presentan en conglomerados verticales, que corresponden a las ubicaciones fijas de las estaciones de monitoreo. Se aprecian variaciones significativas en los niveles de PM2.5 en cada una de estas ubicaciones, lo que sugiere que la contaminación no es homogénea en la ciudad y justifica el uso de métodos de interpolación espacial como el kriging. El gráfico inferior muestra la serie temporal de las mediciones de PM2.5, en dicho gráfico se puede identificar un patrón estacional. Los niveles de PM2.5 parecen ser más bajos y estables durante noviembre y diciembre, mientras que se observa un incremento general en las concentraciones y en la frecuencia de picos elevados durante enero y, especialmente, febrero. Este comportamiento se puede explicar por las condiciones meteorológicas de Bogotá, donde los primeros meses del año suelen ser más secos, favoreciendo la acumulación de contaminantes.
 
 ## Ajuste del modelo de tendencia mediante regresión
 
-Se ajusto un modelo de regresión lineal para describir cómo las concentraciones de PM2.5 ​ varían en función de su ubicación geográfica. El modelo contemplado es el siguiente:
+Se ajusto un modelo de regresión lineal para describir cómo las concentraciones de PM2.5 varían en función de su ubicación geográfica. El modelo contemplado es el siguiente:
 
 $$
 PM2.5 = \beta_0+\beta_1\cdot este + \beta_2\cdot norte+\beta_3\cdot \sin(este)+\beta_4\cdot\sin(norte)
@@ -2508,7 +2515,7 @@ El análisis de los residuales estandarizados respecto a las coordenadas Este y 
 
 ## Estimación del semivariograma
 
-Para analizar la estructura de dependencia espacial y temporal de los residuales de PM2.5 ​, se procedió a calcular el variograma empírico espacio-temporal.
+Para analizar la estructura de dependencia espacial y temporal de los residuales de PM2.5, se procedió a calcular el variograma empírico espacio-temporal.
 
 ```{r}
 #| echo: false
@@ -2600,6 +2607,7 @@ plot(v_st, model_fit, wireframe = TRUE, all = TRUE,
 #| echo: false
 #| message: false
 #| warning: false
+#| results: hide
 # 1. Asegurarse de que el shapefile esté en CRS correcto
 colom_shp <- st_transform(colom_shp, crs = CRS_UTM_CO)
 
@@ -2715,25 +2723,30 @@ graficar_kriging_con_tendencia <- function(fechas, kriging_result, fit1, colom_s
     
     # Gráfico con leyenda manual
 
-    p <- ggplot() +
-      geom_point(data = kriging_df, aes(x = x, y = y, color = tramo), size = 1.8, alpha = 0.85) +
-      scale_color_manual(
-        values = setNames(colores_ordenados, etiquetas),
-        name = "PM2.5 estimado (µg/m³)"
-      ) +
-      geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
-      coord_sf() +
-      labs(
-        title = paste("PM2.5 estimado (por cuantiles) -", f),
-        x = "Este", y = "Norte"
-      ) +
-      theme_minimal() +
-      theme(
-        legend.position = "right",
-        plot.title = element_text(face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 10)
-      )
-    print(p)
+p <- ggplot() +
+  geom_point(data = kriging_df, aes(x = x, y = y, color = tramo), size = 1.8, alpha = 0.85) +
+  scale_color_manual(
+    values = setNames(colores_ordenados, etiquetas),
+    name = "PM2.5 estimado (µg/m³)"
+  ) +
+  geom_sf(data = colom_shp, fill = NA, color = "black", linewidth = 0.3) +
+  coord_sf() +
+  labs(
+    title = paste("PM2.5 estimado (por cuantiles) -", f),
+    x = "Este", y = "Norte"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    legend.key.height = unit(0.4, "cm"),     # Reduce altura de cada cajita
+    legend.text = element_text(size = 7),    # Tamaño de texto más pequeño
+    legend.title = element_text(size = 8),   # Título de leyenda más pequeño
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 10)
+  )
+
+print(p)
+
     Sys.sleep(2)
   }
 }
