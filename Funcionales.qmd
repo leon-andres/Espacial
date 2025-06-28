@@ -37,6 +37,8 @@ if(length(no_installs) > 0) {
 sapply(lista_librerías, require, character = TRUE)
 ```
 
+<!--# El paquete geofd no se puede descargar desde CRAN ya que no se encuentra disponible, este paquete se descargo la ultima versión en https://cran.r-project.org/src/contrib/Archive/geofd/  -->
+
 ## Planteamiento del problema
 
 La modelación del comportamiento de variables ambientales que varían tanto en el espacio como en el tiempo es fundamental para entender los patrones subyacentes en fenómenos naturales complejos. En particular, el albedo del cielo, entendido como el promedio de la fracción de radiación reflejada por la atmósfera, tiene una relación directa con variables radiativas como la radiación solar neta, y ambas influyen significativamente en el balance energético de la superficie terrestre. Estas variables no solo se comportan de manera dinámica a lo largo del día, sino que también presentan dependencia espacial en diferentes regiones geográficas.

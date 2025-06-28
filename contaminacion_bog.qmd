@@ -2781,6 +2781,119 @@ Tras ajustar el modelo teórico separable al semivariograma espacio-temporal de 
 
 Los mapas resultantes revelan una marcada y persistente zonificación de la contaminación. Las zonas norte y nororiente de Bogotá, junto con el área de influencia de los Cerros Orientales, muestran consistentemente las concentraciones más bajas de PM2.5, representadas en tonos fríos. En contraste, el corredor suroccidental de la ciudad, que concentra alta densidad de tráfico y actividad industrial, presenta de forma sistemática los niveles más elevados. En estas zonas, representadas con tonos cálidos, las concentraciones superan con frecuencia los umbrales recomendados, evidenciando una carga de contaminación significativamente mayor.
 
+```{r}
+#| eval: false
+#| message: false
+#| warning: false
+#| include: false
+################################################################
+############ Punto 6: Método de pseudoverosimilitud ############
+################################################################
+
+library(readxl)
+library(dplyr)
+library(lubridate)
+
+pm25_data <- read_excel("PM2_5.xlsx")
+
+datos_st <- pm25_data %>%
+  rename(valor = `PM2.5`) %>%
+  mutate(
+    fecha = ymd(fecha),
+    tiempo = as.numeric(fecha - min(fecha, na.rm = TRUE))
+  ) %>%
+  dplyr::select(este, norte, tiempo, valor, estacion) %>%
+  na.omit()
+
+modelo_st_separable <- function(params, h, u) {
+  nugget <- params[1]; sill_esp <- params[2]; range_esp <- params[3]
+  sill_temp <- params[4]; range_temp <- params[5]
+  
+  # Componente espacial - modelo esférico
+  gamma_esp <- ifelse(h > 0, sill_esp * ((1.5 * h / range_esp) - 0.5 * (h / range_esp)^3), 0)
+  gamma_esp[h > range_esp] <- sill_esp
+  
+  # Componente temporal - modelo esférico
+  gamma_temp <- ifelse(u > 0, sill_temp * ((1.5 * u / range_temp) - 0.5 * (u / range_temp)^3), 0)
+  gamma_temp[u > range_temp] <- sill_temp
+  
+  return(nugget + gamma_esp + gamma_temp)
+}
+
+# Función de pseudoverosimilitud
+  #Negativo de la log-verosimilitud compuesta
+  funcion_objetivo_cl <- function(params, datos, modelo_st_func, cutoff_esp, cutoff_temp) {
+    
+    n_puntos <- nrow(datos)
+    nll_total <- 0
+    
+    if (n_puntos < 2) {
+      return(0)
+    }
+    
+    for (i in seq_len(n_puntos - 1)) {
+      for (j in (i + 1):n_puntos) {
+        
+        # Separación espacial (h) y temporal (u)
+        h <- sqrt((datos$este[i] - datos$este[j])^2 + (datos$norte[i] - datos$norte[j])^2)
+        u <- abs(datos$tiempo[i] - datos$tiempo[j])
+        
+        if (h > cutoff_esp || u > cutoff_temp) {
+          next
+        }
+        
+        V_sq <- (datos$valor[i] - datos$valor[j])^2
+        gamma_teorico <- modelo_st_func(params, h, u)
+        
+        if (is.na(gamma_teorico) || gamma_teorico <= 1e-9) next
+        
+        nll_par <- log(gamma_teorico) + V_sq / (2 * gamma_teorico)
+        nll_total <- nll_total + nll_par
+      }
+    }
+    return(nll_total)
+  }
+
+
+# Función de ajuste
+ajustar_modelo_cl <- function(datos, valores_iniciales, cutoff_esp, cutoff_temp) {
+  limites_inf <- rep(1e-6, length(valores_iniciales))
+  resultado <- optim(
+    par = valores_iniciales, fn = funcion_objetivo_cl, datos = datos,
+    modelo_st_func = modelo_st_separable, cutoff_esp = cutoff_esp,
+    cutoff_temp = cutoff_temp, method = "L-BFGS-B", lower = limites_inf,
+    control = list(trace = 1, fnscale = 1e4)
+  )
+  return(resultado)
+}
+
+# Valores iniciales
+valores_iniciales <- c(nugget=2, sill_esp=10, range_esp=15000, sill_temp=5, range_temp=60)
+  
+#ajuste_st <- ajustar_modelo_cl(
+#    datos = datos_st,
+#    valores_iniciales = valores_iniciales,
+#    cutoff_esp = 25000, 
+#    cutoff_temp = 180)
+  
+# parametros_estimados <- ajuste_st$par
+# names(parametros_estimados) <- names(valores_iniciales)
+# print(round(parametros_estimados, 4))
+
+set.seed(123)
+datos_prueba <- datos_st[sample(nrow(datos_st), 200), ]
+ajuste_prueba <- ajustar_modelo_cl(
+  datos = datos_prueba,
+  valores_iniciales = valores_iniciales,
+  cutoff_esp = 25000, 
+  cutoff_temp = 180
+)
+
+parametros_estimados <- ajuste_prueba$par
+names(parametros_estimados) <- names(valores_iniciales)
+print(round(parametros_estimados, 4))
+```
+
 # REFERENCIAS
 
 -   Secretaría Distrital de Ambiente. (2023). Informe Anual de la Red de Monitoreo de Calidad del Aire de Bogotá – RMCAB. Año 2022. Bogotá D.C.: Alcaldía Mayor de Bogotá. https://www.ambientebogota.gov.co/web/sda/informes-anuales
