@@ -4,7 +4,12 @@
 ###############################
 
 library(sf)
+library(spdep)
 library(dbscan)
+library(ggplot2)
+library(dplyr)
+library(sf)
+library(spdep)
 
 
 # Leer el shapefile
@@ -100,13 +105,6 @@ dim(W)
 Z <- (as.vector(columbus[,9]))$CRIME
 WZ <- W %*% Z
 
-
-
-library(ggplot2)
-library(dplyr)
-library(sf)
-library(spdep)
-
 # Asegurar que 'columbus_sf' sea un objeto sf válido
 columbus_sf <- st_as_sf(columbus)
 
@@ -151,10 +149,6 @@ ggplot(mapas_completos) +
   scale_fill_viridis_c(option = "C", name = "Media Móvil") +
   labs(title = "Mapas de medias móviles espaciales por matriz W") +
   theme_minimal()
-
-
-
-
 
 # Variables de interés para el test de Moran
 vars_interes <- c("HOVAL", "INC", "OPEN", "PLUMB", "DISCBD")
