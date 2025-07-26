@@ -1,5 +1,5 @@
 ---
-title: "Parcial 3"
+title: "Parcial 3 - Patrones Puntuales Espaciales"
 date: 07-26-2025
 author:
   - name: Jerson Vargas Galeano
@@ -11,23 +11,650 @@ toc: true
 toc-depth: 2
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
-
 ```{r}
-1 + 1
+#| include: false
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
 ```
 
-You can add options to executable code like this
+El presente estudio tiene como objetivo analizar la distribución espacial de los accidentes de tránsito ocurridos en la ciudad de Nueva York. Un patrón de puntos espacial consiste en un conjunto de ubicaciones donde ocurren eventos de interés, las cuales no están predeterminadas por un mecanismo de muestreo. El análisis busca determinar si la localización de estos siniestros sigue un patrón aleatorio o si, por el contrario, existen factores espaciales que provocan su concentración (agregación) o dispersión (regularidad) en ciertas zonas de la ciudad.
+
+La hipótesis nula de partida es la Aleatoriedad Espacial Completa (CSR, por sus siglas en inglés). Un proceso CSR implica que los eventos se distribuyen de manera uniforme e independiente en el área de estudio. Para verificar esta hipótesis, se emplearán diversas técnicas estadísticas de primer y segundo orden
+
+# Exploración espacial
 
 ```{r}
-#| echo: false
-2 * 2
+#| include: false
+library(sf)
+library(readr)
+library(spatstat)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+```{r}
+#| include: false
+datos <- read_csv("data/NYCAccidents2020.csv")
+
+# Eliminar datos con ausencia de coordenadas y posible error de registro
+datos_sf <- datos %>%
+  filter(!is.na(LONGITUDE), !is.na(LATITUDE), LONGITUDE < -73.5, 
+         LONGITUDE > -74.5, LATITUDE > 40.3, LATITUDE < 41.0) %>%
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326, remove = FALSE)
+
+# Se extrae una muestra de 2000 individuos
+set.seed(123)
+datos_sf <- sample_n(datos_sf, 2000)
+
+# Shapefile de NYC
+mapa <- read_sf("data/nybb.shp")
+
+# Transformar coordenadas a UTM
+datos_utm <- st_transform(datos_sf, crs = 26918)
+mapa_utm  <- st_transform(mapa,  crs = 26918)
+
+# Ventana de observación
+bbox <- st_bbox(datos_utm)
+win <- owin(xrange = c(bbox["xmin"], bbox["xmax"]),
+            yrange = c(bbox["ymin"], bbox["ymax"]))
+
+# Crear patrón de puntos
+coords <- st_coordinates(datos_utm)
+accidentes <- ppp(x = coords[,1], y = coords[,2], window = win)
+```
+
+El primer paso consiste en la representación gráfica de las ubicaciones de los accidentes. Como se observa en el mapa de puntos inicial, los eventos no parecen estar distribuidos de manera uniforme en la ventana de observación.
+
+```{r}
+# Gráfica de puntos
+ggplot() +
+  geom_sf(data = datos_utm, aes(), color = "black", size = 0.3, alpha = 0.5) +
+  coord_sf(xlim = st_bbox(mapa_utm)[c("xmin", "xmax")],
+           ylim = st_bbox(mapa_utm)[c("ymin", "ymax")],
+           expand = FALSE) +
+  labs(title = "Mapa de puntos - Accidentes en NYC") +
+  theme_minimal()
+```
+
+Visualmente, se aprecian zonas con alta densidad de puntos, particularmente en las áreas que corresponden a Manhattan y Brooklyn, sugiriendo un patrón de agregación.
+
+```{r}
+ggplot() +
+  geom_sf(data = mapa_utm, fill = NA, color = "blue", size = 1) +
+  geom_sf(data = datos_utm, aes(), color = "black", size = 0.3, alpha = 0.5) +
+  coord_sf(xlim = st_bbox(mapa_utm)[c("xmin", "xmax")],
+           ylim = st_bbox(mapa_utm)[c("ymin", "ymax")],
+           expand = FALSE) +
+  labs(title = "Mapa de Accidentes en NYC") +
+  theme_minimal()
+```
+
+# Pruebas de aleatoriedad
+
+## Prueba de cuadrantes
+
+Para cuantificar esta primera impresión, se realiza una prueba de bondad de ajuste $\chi^2$ . Este método consiste en dividir la región de estudio en una grilla de cuadrantes disjuntos y comparar el número de eventos $n_i$ observados en cada celda con el número esperado bajo un proceso CSR $\bar{n}$. El estadístico de prueba es:
+
+$$
+\chi^2_0=\frac{\sum_{i=1}^L(n_i-\bar{n})^2}{\bar{n}}\sim\chi^2_{(L-1)}
+$$
+
+Se evaluaron tres configuraciones de grilla para asegurar la robustez del resultado:
+
+-   **Cuadricula 4x4:** Se obtuvo Se obtuvo un estadístico $\chi^2 =2750$ con 15 grados de libertad y un $p-valor<2.2e-16$.
+
+```{r}
+qcount4x4 <- quadratcount(accidentes, nx = 4, ny = 4)
+plot(qcount4x4, main = "Cuadricula 4x4", cex = 0.5)
+plot(accidentes, add = TRUE, pch = ".", cex = 0.3)
+plot(mapa_utm$geometry, add = TRUE, border = "black", lwd = 1)
+print(quadrat.test(accidentes, nx = 4, ny = 4))
+```
+
+-   **Cuadrícula 6x6:** El estadístico fue $\chi^2 =3889$ con 35 grados de libertad y un $p-valor < 2.2e-16$.
+
+```{r}
+# Cuadrante 6x6
+qcount6x6 <- quadratcount(accidentes, nx = 6, ny = 6)
+plot(qcount6x6, main = "Cuadricula 6x6", cex = 0.5)
+plot(accidentes, add = TRUE, pch = ".", cex = 0.3)
+plot(mapa_utm$geometry, add = TRUE, border = "black", lwd = 1)
+print(quadrat.test(accidentes, nx = 6, ny = 6))
+```
+
+-   **Cuadrícula 10x10:** Se obtuvo $\chi^2 =4993.5$ con 99 grados de libertad y un $p-valor < 2.2e-16$.
+
+```{r}
+# Cuadrante 10x10
+qcount10x10 <- quadratcount(accidentes, nx = 10, ny = 10)
+plot(qcount10x10, main = "Cuadricula 10x10", cex = 0.5)
+plot(accidentes, add = TRUE, pch = ".", cex = 0.3)
+plot(mapa_utm$geometry, add = TRUE, border = "black", lwd = 1)
+print(quadrat.test(accidentes, nx = 10, ny = 10))
+```
+
+En los tres casos, el p-valor es extremadamente bajo, lo que lleva a rechazar la hipótesis nula de CSR. Los eventos no se distribuyen de forma aleatoria y homogénea en la ciudad.
+
+## Prueba de distancias
+
+Como alternativa a la prueba de cuadrantes, que puede ser sensible al tamaño y número de las celdas, se utilizan métodos basados en las distancias entre los eventos.
+
+-   **Función G:** Esta función analiza la distribución de las distancias desde cada evento a su vecino más cercano. En el gráfico la curva observada se sitúa muy por encima de la curva teórica bajo CSR y de la banda de confianza generada por simulación. Esto indica que las distancias al vecino más cercano son, en general, mucho más cortas de lo que se esperaría en un patrón aleatorio, lo cual es una clara evidencia de agregación o clustering.
+
+```{r}
+#| results: hide
+# Función G
+env_G <- envelope(accidentes, Gest, nsim = 1000, correction = "border")
+plot(env_G, main = "Función G")
+```
+
+-   **Test de Hopkins-Skellam:** Esta prueba compara la distribución de distancias entre eventos con la distribución de distancias entre puntos aleatorios y eventos. El resultado de la prueba arroja un $p-valor < 2.2e-16$, lo que nuevamente lleva a rechazar la hipótesis de CSR.
+
+```{r}
+# Test de Hopkins-Skellam
+print(hopskel.test(accidentes, method = "asymptotic"))
+```
+
+```{r}
+# Indice de Clark-Evans
+print(clarkevans(accidentes, correction = "none"))
+```
+
+# Estimación de intensidad
+
+La intensidad $\lambda(s)$, se define como el número esperado de eventos por unidad de área. Dado que se ha rechazado la hipótesis de homogeneidad, es de interés estimar cómo varía esta intensidad en el espacio.
+
+## Modelo paramétrico
+
+### Modelo media constante
+
+Se ajustó un modelo de Proceso de Poisson Homogéneo. La intensidad estimada es de $9.67×10 −7$ puntos por unidad cuadrada. Sin embargo, este modelo no es adecuado, como ya demostraron las pruebas de CSR.
+
+```{r}
+# Modelo media constante
+modelo_homog <- ppm(accidentes, ~1)
+print(summary(modelo_homog))
+```
+
+### Modelo media no constante
+
+Se ajustó un modelo donde la intensidad varía espacialmente en función de las coordenadas. Los coeficientes del modelo resultaron significativos, indicando la presencia de un gradiente de intensidad a lo largo del mapa.
+
+```{r}
+# Modelo media no constante
+modelo_inhomog <- ppm(accidentes, ~x + y)
+summary(modelo_inhomog)
+```
+
+## Modelo no paramétricos
+
+Para obtener una visión más flexible de la intensidad, sin imponer una forma funcional específica, se utilizó una estimación por kernel. El mapa de calor resultante muestra claramente las zonas de alta concentración de accidentes . Se observa que la mayor intensidad se localiza en el centro y sur de Manhattan, así como en áreas densamente pobladas de Brooklyn y el Bronx, mientras que en zonas como Staten Island la intensidad es notablemente menor. Esto confirma que el proceso es no homogéneo.
+
+```{r}
+# Estimación de intensidad no paramétrica
+est_no_par <- density.ppp(accidentes, sigma = bw.diggle(accidentes))
+plot(est_no_par, main = "Estimación de intensidad no parámetrica")
+plot(mapa_utm$geometry, add = TRUE, border = "black")
+```
+
+# Pruebas de interacción
+
+Las propiedades de segundo orden describen la correlación espacial o la interacción entre los eventos a diferentes distancias. Dado que el proceso es no homogéneo, se utilizan las versiones de las funciones *K*, *L* y *g* para procesos inhomogéneos.
+
+## Función K de Ripley
+
+El gráfico de la función *K* muestra que la curva observada se encuentra por encima de la curva teórica y de la banda de confianza. Esto indica que, para todas las distancias analizadas, hay un número mayor de eventos de lo esperado bajo un proceso aleatorio, confirmando la agregación a múltiples escalas.
+
+```{r}
+#| results: hide
+# env_K <- envelope(accidentes, Kest, nsim = 100, correction = "border")
+env_K <- envelope(accidentes, Kinhom, nsim = 100, correction = "border")
+plot(env_K, main = "Función K de Ripley")
+```
+
+## Función L de Besag
+
+Esta es una transformación de la función *K* que estabiliza la varianza y facilita la interpretación. Bajo CSR $L(r)=r$. El gráfico muestra que la curva observada está por encima de la línea teórica, lo que ratifica el patrón de agregación.
+
+```{r}
+#| results: hide
+# Función L de Besag
+# env_L <- envelope(accidentes, Lest, nsim = 100, correction = "border")
+env_L <- envelope(accidentes, Linhom, nsim = 100, correction = "border")
+plot(env_L, main = "Función L de Besag")
+```
+
+## Función de correlación por pares (g)
+
+Esta función puede interpretarse como la densidad de puntos a una distancia $r$ de un punto arbitrario, dividida por la intensidad del proceso. Para un proceso agregado, se esperan valores de $g(r)>1$ para distancias cortas.
+
+```{r}
+#| results: hide
+# env_G <- envelope(accidentes, pcf, nsim = 100, correction = "border")
+env_PCF <- envelope(accidentes, pcfinhom, nsim = 100, correction = "Ripley")
+plot(env_PCF, main = "Función de correlación por pares (g)")
+```
+
+El gráfico de la función $g(r)$ muestra valores significativamente mayores a 1 para distancias cortas, que luego tienden a 1 a medida que la distancia aumenta. Esto indica una fuerte atracción o agrupación a corta distancia entre los eventos.
+
+# Análisis con marcas
+
+En esta sección, se profundiza el análisis considerando que cada evento (accidente) tiene una característica o "marca" asociada: el número de personas heridas. Los accidentes se clasificaron en tres categorías:
+
+-   0 heridos (Marca: 0).
+
+-   1-2 heridos (Marca: 1-2).
+
+-   3 o más heridos (Marca: 3+).
+
+El objetivo es determinar si el patrón espacial de los accidentes es independiente de su gravedad o si existen patrones de interacción entre las diferentes categorías.
+
+## Exploración espacial
+
+```{r}
+datos_utm <- datos_utm %>%
+  mutate(heridos_cat = cut(`NUMBER OF PERSONS INJURED`,
+                           breaks = c(0, 1, 2, Inf),
+                           labels = c("0", "1-2", "3+"),
+                           right = FALSE))
+
+knitr::kable(table(datos_utm$heridos_cat))
+```
+
+```{r}
+ggplot() +
+  geom_sf(data = mapa_utm, fill = NA, color = "blue", size = 1) +
+  geom_sf(data = datos_utm %>% filter(!is.na(heridos_cat)),
+          aes(color = heridos_cat),
+          size = 0.3, alpha = 0.7) +
+  scale_color_brewer(palette = "Dark2", name = "No. de heridos") +
+  coord_sf(xlim = st_bbox(mapa_utm)[c("xmin", "xmax")],
+           ylim = st_bbox(mapa_utm)[c("ymin", "ymax")],
+           expand = FALSE) +
+  labs(title = "Mapa de Accidentes en NYC según No. de Heridos") +
+  theme_minimal() +
+  theme(legend.position = "right",
+        plot.title = element_text(face = "bold", size = 14))
+```
+
+A primera vista, se observa que las diferentes marcas no están segregadas en distintas partes de la ciudad. Por el contrario, aparecen mezcladas dentro de las mismas zonas de alta concentración, lo que sugiere que los accidentes de distinta gravedad tienden a ocurrir en los mismos lugares.
+
+```{r}
+# Crear patrón de puntos con marca (numero de personas heridas)
+accidentes_marca <- ppp(x = coords[,1], y = coords[,2], 
+                        window = win, marks = datos_utm$heridos_cat)
+
+accidentes_split <- split(accidentes_marca)
+
+plot(accidentes_split, use.marks=FALSE,
+     main="Accidentes de transito en NYC",
+     pch=21, bg=2, cex=0.3)
+
+print(summary(accidentes_marca))
+```
+
+Esta visualización confirma que cada categoría, por sí sola, exhibe un patrón de agregación. Los accidentes con 0 heridos son los más numerosos y definen el patrón general. Los accidentes con 3 o más heridos, aunque son menos frecuentes, también aparecen claramente agrupados en lugar de dispersos por toda la ciudad.
+
+## Pruebas de aleatoriedad
+
+### Prueba de cuadrantes
+
+Se aplicó la prueba de bondad de ajuste $\chi^2$ de manera independiente para cada categoría de marca.
+
+-   **Cuadrante 4x4**
+
+```{r}
+par(mfrow = c(1, 3), mar = c(2, 2, 2, 1))
+for (cat in names(accidentes_split)) {
+  subpat <- accidentes_split[[cat]]
+  q <- quadratcount(subpat, nx = 4, ny = 4) # Calcular cuadrante
+  plot(q, main = paste("Marca:", cat), cex = 0.6)
+  plot(subpat, add = TRUE, pch = ".", cex = 0.3)
+  plot(mapa_utm$geometry, add = TRUE, border = "black", lwd = 1)
+}
+par(mfrow = c(1, 1))
+print(quadrat.test.splitppp(accidentes_split, nx = 4, ny = 4))
+```
+
+-   **Cuadrante 6x6**
+
+```{r}
+par(mfrow = c(1, 3), mar = c(2, 2, 2, 1))
+for (cat in names(accidentes_split)) {
+  subpat <- accidentes_split[[cat]]
+  q <- quadratcount(subpat, nx = 6, ny = 6) # Calcular cuadrante
+  plot(q, main = paste("Marca:", cat), cex = 0.6)
+  plot(subpat, add = TRUE, pch = ".", cex = 0.3)
+  plot(mapa_utm$geometry, add = TRUE, border = "black", lwd = 1)
+}
+par(mfrow = c(1, 1))
+print(quadrat.test.splitppp(accidentes_split, nx = 6, ny = 6))
+```
+
+-   **Cuadrante 10x10**
+
+```{r}
+par(mfrow = c(1, 3), mar = c(2, 2, 2, 1))
+for (cat in names(accidentes_split)) {
+  subpat <- accidentes_split[[cat]]
+  q <- quadratcount(subpat, nx = 10, ny = 10) # Calcular cuadrante
+  plot(q, main = paste("Marca:", cat), cex = 0.6)
+  plot(subpat, add = TRUE, pch = ".", cex = 0.3)
+  plot(mapa_utm$geometry, add = TRUE, border = "black", lwd = 1)
+}
+par(mfrow = c(1, 1))
+print(quadrat.test.splitppp(accidentes_split, nx = 10, ny = 10))
+```
+
+Para las tres categorías de accidentes (0, 1-2, y 3+ heridos), los resultados de la prueba $\chi^2$ arrojaron p-valores inferiores a $2.2e-16$. Esto permite rechazar de forma estadísticamente significativa la hipótesis de Aleatoriedad Espacial Completa (CSR) para cada grupo por separado. La conclusión es que el patrón de agregación no es exclusivo de un tipo de accidente, sino una característica presente en todos los niveles de gravedad.
+
+### Prueba de distancias
+
+Se calculó una matriz de funciones G para analizar tanto la agregación dentro de cada categoría como la interacción entre ellas.
+
+```{r}
+# Función G entre marcas
+plot(alltypes(accidentes_marca, "G"))
+```
+
+Los gráficos que se encuentran sobre la diagonal muestran que la curva observada está por encima de la teórica. Esto confirma que los accidentes de 0 heridos se agrupan con otros de 0 heridos, los de 1-2 heridos se agrupan entre sí, y los de 3+ heridos también se agrupan entre ellos.
+
+Los gráficos que cruzan categorías es decir los que se encuentran fuera de la diagonal también muestran que la curva observada supera a la teórica. Esto indica una atracción espacial entre los diferentes tipos de accidentes. Significa que es común encontrar accidentes de distinta gravedad ocurriendo en las mismas zonas. No hay evidencia de que los accidentes graves ocurran en lugares distintos a los leves; por el contrario, comparten las mismas zonas de riesgo.
+
+```{r}
+# Función G de punto marca i a cualquier otra
+plot(alltypes(accidentes_marca, "Gdot"))
+```
+
+## Estimación de intensidad
+
+### Modelo paramétrico
+
+#### Modelo media constante
+
+```{r}
+# Modelo media constante
+modelo_homog_mark <- ppm(accidentes_marca, ~1)
+summary(modelo_homog_mark)
+```
+
+#### Modelo media no constante
+
+```{r}
+# Modelo media no constante
+modelo_inhomog_mark <- ppm(accidentes_marca, ~marks)
+summary(modelo_inhomog_mark)
+```
+
+### Modelo no paramétrico
+
+Se generaron mapas de densidad para estimar la función de intensidad de cada tipo de accidente de forma no paramétrica.
+
+```{r}
+est_no_par_mark <- density.splitppp(accidentes_split, 
+                                    sigma = bw.diggle(accidentes))
+plot(est_no_par_mark, main = "Estimación de intensidad no parámetrica")
+```
+
+Los mapas de intensidad confirman visualmente los hallazgos anteriores. Muestran que las zonas de mayor concentración son geográficamente consistentes para las tres categorías. Esto refuerza la conclusión de que, aunque la frecuencia de cada tipo de accidente varía, las ubicaciones de alto riesgo son comunes para todos.
+
+## Pruebas de interacción
+
+Se calcularon las funciones de segundo orden para procesos no homogéneos para obtener un análisis más robusto de la interacción, corrigiendo por la variación en la intensidad de cada marca.
+
+```{r}
+# Función K de Ripley entre marcas
+plot(alltypes(accidentes_marca, "Kcross.inhom"))
+```
+
+```{r}
+# Función K de Ripley de punto marca i a cualquier otra
+plot(alltypes(accidentes_marca, "Kdot.inhom"))
+```
+
+```{r}
+# Función L de Besag entre marcas
+plot(alltypes(accidentes_marca, "Lcross.inhom"))
+```
+
+Las curvas de la Función L de Besag por encima de la línea de referencia indican atracción entre las marcas a diversas escalas espaciales.
+
+```{r}
+# Función L de Besag de punto marca i a cualquier otra
+plot(alltypes(accidentes_marca, "Ldot.inhom"))
+```
+
+```{r}
+# Función de correlación por pares (g) entre marcas
+plot(alltypes(accidentes_marca, "pcfcross.inhom"))
+```
+
+La función de correlación por pares muestra valores $> 1$ a distancias cortas, lo que refuerza la idea de que la probabilidad de encontrar un accidente de tipo $j$ cerca de un accidente de tipo $i$ es mayor que si los procesos fueran independientes.
+
+```{r}
+# Función de correlación por pares (g) de punto marca i a cualquier otra
+plot(alltypes(accidentes_marca, "pcfdot.inhom"))
+```
+
+El análisis por marcas confirma que el patrón de agregación es una característica intrínseca de los accidentes de tránsito en NYC, independientemente de su gravedad. La fuerte atracción espacial entre las diferentes categorías sugiere que todos los tipos de accidentes comparten las mismas zonas de riesgo subyacentes, probablemente definidas por la alta densidad de tráfico, la complejidad de la infraestructura vial y la concentración de actividad humana. La mayor concentración de los accidentes más graves en puntos específicos justifica una atención prioritaria en esas intersecciones y corredores viales para la implementación de medidas de seguridad vial.
+
+# Análisis por tiempo
+
+Este análisis compara los patrones de accidentes en Invierno, Primavera y Verano para evaluar si existen variaciones espaciales significativas a lo largo del año.
+
+```{r}
+datos_utm <- datos_utm %>%
+  mutate(FECHA = ymd(`CRASH DATE`)) %>%
+  filter(!is.na(FECHA)) %>%
+  mutate(estacion = case_when(
+    month(FECHA) %in% c(3, 4, 5)   ~ "Primavera",
+    month(FECHA) %in% c(6, 7, 8)   ~ "Verano",
+    month(FECHA) %in% c(9, 10, 11) ~ "Otoño",
+    month(FECHA) %in% c(12, 1, 2)  ~ "Invierno"
+  )) %>%
+  filter(!is.na(estacion))
+datos_utm$estacion <- factor(datos_utm$estacion,
+                             levels = c("Invierno", "Primavera",
+                                        "Verano"))
+knitr::kable(table(datos_utm$estacion))
+```
+
+## Exploración espacial
+
+```{r}
+datos_estacion <- split(datos_utm, datos_utm$estacion)
+
+# Crear lista de ppp
+accidentes_estacion <- lapply(datos_estacion, function(df) {
+  coords <- st_coordinates(df)
+  ppp(x = coords[,1], y = coords[,2], window = win)
+})
+
+```
+
+La inspección visual de los mapas no revela diferencias notorias en la distribución espacial de los accidentes. Los principales conglomerados parecen estar en las mismas ubicaciones, independientemente de la estación.
+
+```{r}
+ggplot() +
+  geom_sf(data = mapa_utm, fill = NA, color = "gray40", size = 0.5) +
+  geom_sf(data = datos_utm, aes(), color = "firebrick", alpha = 0.4, size = 0.3) +
+  facet_wrap(~estacion) +
+  coord_sf(xlim = st_bbox(mapa_utm)[c("xmin", "xmax")],
+           ylim = st_bbox(mapa_utm)[c("ymin", "ymax")],
+           expand = FALSE) +
+  labs(title = "Accidentes en NYC por Estación del Año") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold"),
+    panel.grid = element_blank()
+  )
+```
+
+## Pruebas de aleatoriedad
+
+### Prueba de cuadrantes
+
+Se aplicó la prueba $\chi^2$ a los datos de cada estación por separado.
+
+-   **Cuadricula 4x4**
+
+```{r}
+par(mfrow = c(1, 3), mar = c(2,2,3,1))
+for (nombre in names(accidentes_estacion)) {
+  q <- quadratcount(accidentes_estacion[[nombre]], nx = 4, ny = 4)
+  plot(q, main = paste("Estación -", nombre))
+  plot(accidentes_estacion[[nombre]], add = TRUE, pch = ".", cex = 1)
+}
+par(mfrow = c(1,1))
+```
+
+```{r}
+results <- lapply(names(accidentes_estacion), function(est){
+  cat("Estación:", est, "\n")
+  test <- quadrat.test(accidentes_estacion[[est]], nx = 4, ny = 4)
+  print(test)
+})
+```
+
+-   **Cuadricula 8x8**
+
+```{r}
+par(mfrow = c(1, 3), mar = c(2,2,3,1))
+for (nombre in names(accidentes_estacion)) {
+  q <- quadratcount(accidentes_estacion[[nombre]], nx = 8, ny = 8)
+  plot(q, main = paste("Estación - ", nombre))
+  plot(accidentes_estacion[[nombre]], add = TRUE, pch = ".", cex = 1)
+}
+par(mfrow = c(1,1))
+```
+
+```{r}
+results <- lapply(names(accidentes_estacion), function(est){
+  cat("Estación:", est, "\n")
+  test <- quadrat.test(accidentes_estacion[[est]], nx = 8, ny = 8)
+  print(test)
+})
+```
+
+Los resultados para Invierno, Primavera y Verano arrojan p-valores prácticamente nulos. Esto confirma que el patrón de accidentes es no aleatorio durante todo el año. La agregación espacial es una característica persistente.
+
+### Prueba de distancias
+
+Se graficó la función G para cada una de las tres estaciones.
+
+```{r}
+#| results: hide
+par(mfrow = c(1, 3))
+for (nombre in names(accidentes_estacion)) {
+  env_G <- envelope(accidentes_estacion[[nombre]], Gest, nsim = 199, correction = "border", verbose = FALSE)
+  plot(env_G, main = paste("Fun G -", nombre))
+}
+par(mfrow = c(1, 1))
+```
+
+Los tres gráficos son casi idénticos. Todos muestran un claro patrón de agregación (curva observada por encima de la teórica). La similitud entre las curvas indica que la intensidad y la escala de la aglomeración de accidentes no cambian significativamente con la estación.
+
+## Estimación de intensidad
+
+### Modelo no paramétrico
+
+Se generaron mapas de calor para estimar la intensidad de los accidentes en cada estación.
+
+```{r}
+par(mfrow = c(1, 3))
+for (nombre in names(accidentes_estacion)) {
+  est <- density.ppp(accidentes_estacion[[nombre]], sigma = bw.diggle(accidentes_estacion[[nombre]]))
+  plot(est, main = paste("NP -", nombre))
+  plot(mapa_utm$geometry, add = TRUE, border = "black")
+}
+par(mfrow = c(1, 1))
+```
+
+Los mapas de intensidad son visualmente muy parecidos. Las zonas de mayor concentración se localizan en las mismas áreas geográficas en las tres estaciones. Esto refuerza la idea de que los factores que determinan la ubicación de los accidentes son estructurales y permanentes (como el diseño vial o la densidad de población) en lugar de estacionales (como el clima).
+
+## Estimación de intensidad
+
+### Modelo paramétrico
+
+#### Modelo media constante
+
+```{r}
+modelos_param <- lapply(accidentes_estacion, 
+                        function(p) ppm(p, ~1))
+lapply(modelos_param, summary)
+
+```
+
+#### Modelo media no constante
+
+```{r}
+modelos_param <- lapply(accidentes_estacion, function(p) ppm(p, ~x + y))
+lapply(modelos_param, summary)
+```
+
+## Pruebas de interacción
+
+Se calcularon las funciones K, L y de correlación por pares para cada estación, ajustando por la no homogeneidad del proceso.
+
+```{r}
+#| results: hide
+par(mfrow = c(1,3))
+for (nombre in names(accidentes_estacion)) {
+  env_K <- envelope(accidentes_estacion[[nombre]], Kinhom, nsim = 199, correction = "border", verbose = FALSE)
+  plot(env_K, main = paste("K -", nombre))
+}
+par(mfrow = c(1,1))
+```
+
+```{r}
+#| results: hide
+par(mfrow = c(1,3))
+for (nombre in names(accidentes_estacion)) {
+  env_L <- envelope(accidentes_estacion[[nombre]], Linhom, nsim = 199, correction = "border", verbose = FALSE)
+  plot(env_L, main = paste("L -", nombre))
+}
+par(mfrow = c(1,1))
+```
+
+Estas pruebas confirman de manera robusta los hallazgos anteriores. Los gráficos de las funciones K, L y pcf para Invierno, Primavera y Verano son notablemente similares, indicando en todos los casos un fuerte patrón de agregación. Esto demuestra la estabilidad del proceso espacial a lo largo del año. La estructura de dependencia espacial entre los eventos no presenta una variación estacional significativa.
+
+```{r}
+#| results: hide
+par(mfrow = c(1,3))
+for (nombre in names(accidentes_estacion)) {
+  env_pcf <- envelope(accidentes_estacion[[nombre]], pcfinhom, nsim = 199, correction = "Ripley", verbose = FALSE)
+  plot(env_pcf, main = paste("pcf -", nombre))
+}
+par(mfrow = c(1,1))
+```
+
+El análisis comparativo entre estaciones demuestra que el patrón espacial de los accidentes de tránsito en NYC es estructuralmente estable y no presenta una variabilidad estacional significativa. La agregación espacial y la ubicación de las zonas de alta peligrosidad son consistentes durante todo el año.
+
+Esta conclusión sugiere que los principales factores que determinan dónde ocurren los accidentes son características permanentes del entorno urbano, tales como:
+
+-   La densidad de la red vial y la presencia de intersecciones complejas.
+
+-   La concentración de población y actividad económica.
+
+-   Los flujos de tráfico diarios.
+
+Aunque factores climáticos asociados a las estaciones (nieve en invierno, lluvia en primavera) pueden influir en el riesgo general de accidente, no parecen alterar fundamentalmente la geografía de la siniestralidad en la ciudad. Por lo tanto, las estrategias de prevención deben centrarse en estas características espaciales estructurales más que en intervenciones estacionales.
+
+# Conclusiones
+
+El análisis estadístico espacial de los accidentes de tránsito en la ciudad de Nueva York revela de manera concluyente que su distribución no es aleatoria. La hipótesis de Aleatoriedad Espacial Completa (CSR) fue rechazada consistentemente a través de múltiples pruebas, tanto de cuadrantes como basadas en distancias.
+
+Los principales hallazgos son:
+
+1.  **Patrón Agregado:** Los accidentes tienden a concentrarse en clusters. Las funciones de segundo orden (*K*, *L* y *g*) demuestran que esta agregación ocurre a diferentes escalas espaciales, siendo particularmente fuerte a cortas distancias.
+
+2.  **Proceso No Homogéneo:** La intensidad de los accidentes no es constante en toda la ciudad. La estimación no paramétrica de la intensidad permitió identificar puntos de concentración o zonas de alta peligrosidad, principalmente en Manhattan, Brooklyn y el Bronx.
+
+3.  **Consistencia del Patrón:** El patrón de agregación se mantiene tanto al analizar los accidentes por su gravedad (número de heridos) como al dividirlos por estación del año. Esto sugiere que las causas subyacentes del clustering son de naturaleza estructural y persistente en el tiempo.
+
+Estos resultados son fundamentales para la gestión del tráfico y la seguridad vial. La identificación de zonas de alta siniestralidad permite a las autoridades enfocar recursos en intervenciones específicas, como mejoras en la infraestructura, aumento de la vigilancia o campañas de concienciación.

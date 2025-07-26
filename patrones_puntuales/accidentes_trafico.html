@@ -10,7 +10,7 @@
 <meta name="author" content="Andres David Leon Hernandez">
 <meta name="dcterms.date" content="2025-07-26">
 
-<title>Parcial 3</title>
+<title>Parcial 3 - Patrones Puntuales Espaciales</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -22,40 +22,6 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
-}
-/* CSS for syntax highlighting */
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -71,6 +37,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="accidentes_trafico_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="accidentes_trafico_files/libs/bootstrap/bootstrap-1bc8a17f135ab3d594c857e9f48e611b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -79,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Parcial 3</h1>
+      <h1 class="title">Parcial 3 - Patrones Puntuales Espaciales</h1>
                       </div>
   </div>
     
@@ -111,8 +106,39 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">Table of contents</h2>
    
   <ul class="collapse">
-  <li><a href="#quarto" id="toc-quarto" class="nav-link active" data-scroll-target="#quarto">Quarto</a></li>
-  <li><a href="#running-code" id="toc-running-code" class="nav-link" data-scroll-target="#running-code">Running Code</a></li>
+  <li><a href="#exploración-espacial" id="toc-exploración-espacial" class="nav-link active" data-scroll-target="#exploración-espacial">Exploración espacial</a></li>
+  <li><a href="#pruebas-de-aleatoriedad" id="toc-pruebas-de-aleatoriedad" class="nav-link" data-scroll-target="#pruebas-de-aleatoriedad">Pruebas de aleatoriedad</a>
+  <ul class="collapse">
+  <li><a href="#prueba-de-cuadrantes" id="toc-prueba-de-cuadrantes" class="nav-link" data-scroll-target="#prueba-de-cuadrantes">Prueba de cuadrantes</a></li>
+  <li><a href="#prueba-de-distancias" id="toc-prueba-de-distancias" class="nav-link" data-scroll-target="#prueba-de-distancias">Prueba de distancias</a></li>
+  </ul></li>
+  <li><a href="#estimación-de-intensidad" id="toc-estimación-de-intensidad" class="nav-link" data-scroll-target="#estimación-de-intensidad">Estimación de intensidad</a>
+  <ul class="collapse">
+  <li><a href="#modelo-paramétrico" id="toc-modelo-paramétrico" class="nav-link" data-scroll-target="#modelo-paramétrico">Modelo paramétrico</a></li>
+  <li><a href="#modelo-no-paramétricos" id="toc-modelo-no-paramétricos" class="nav-link" data-scroll-target="#modelo-no-paramétricos">Modelo no paramétricos</a></li>
+  </ul></li>
+  <li><a href="#pruebas-de-interacción" id="toc-pruebas-de-interacción" class="nav-link" data-scroll-target="#pruebas-de-interacción">Pruebas de interacción</a>
+  <ul class="collapse">
+  <li><a href="#función-k-de-ripley" id="toc-función-k-de-ripley" class="nav-link" data-scroll-target="#función-k-de-ripley">Función K de Ripley</a></li>
+  <li><a href="#función-l-de-besag" id="toc-función-l-de-besag" class="nav-link" data-scroll-target="#función-l-de-besag">Función L de Besag</a></li>
+  <li><a href="#función-de-correlación-por-pares-g" id="toc-función-de-correlación-por-pares-g" class="nav-link" data-scroll-target="#función-de-correlación-por-pares-g">Función de correlación por pares (g)</a></li>
+  </ul></li>
+  <li><a href="#análisis-con-marcas" id="toc-análisis-con-marcas" class="nav-link" data-scroll-target="#análisis-con-marcas">Análisis con marcas</a>
+  <ul class="collapse">
+  <li><a href="#exploración-espacial-1" id="toc-exploración-espacial-1" class="nav-link" data-scroll-target="#exploración-espacial-1">Exploración espacial</a></li>
+  <li><a href="#pruebas-de-aleatoriedad-1" id="toc-pruebas-de-aleatoriedad-1" class="nav-link" data-scroll-target="#pruebas-de-aleatoriedad-1">Pruebas de aleatoriedad</a></li>
+  <li><a href="#estimación-de-intensidad-1" id="toc-estimación-de-intensidad-1" class="nav-link" data-scroll-target="#estimación-de-intensidad-1">Estimación de intensidad</a></li>
+  <li><a href="#pruebas-de-interacción-1" id="toc-pruebas-de-interacción-1" class="nav-link" data-scroll-target="#pruebas-de-interacción-1">Pruebas de interacción</a></li>
+  </ul></li>
+  <li><a href="#análisis-por-tiempo" id="toc-análisis-por-tiempo" class="nav-link" data-scroll-target="#análisis-por-tiempo">Análisis por tiempo</a>
+  <ul class="collapse">
+  <li><a href="#exploración-espacial-2" id="toc-exploración-espacial-2" class="nav-link" data-scroll-target="#exploración-espacial-2">Exploración espacial</a></li>
+  <li><a href="#pruebas-de-aleatoriedad-2" id="toc-pruebas-de-aleatoriedad-2" class="nav-link" data-scroll-target="#pruebas-de-aleatoriedad-2">Pruebas de aleatoriedad</a></li>
+  <li><a href="#estimación-de-intensidad-2" id="toc-estimación-de-intensidad-2" class="nav-link" data-scroll-target="#estimación-de-intensidad-2">Estimación de intensidad</a></li>
+  <li><a href="#estimación-de-intensidad-3" id="toc-estimación-de-intensidad-3" class="nav-link" data-scroll-target="#estimación-de-intensidad-3">Estimación de intensidad</a></li>
+  <li><a href="#pruebas-de-interacción-2" id="toc-pruebas-de-interacción-2" class="nav-link" data-scroll-target="#pruebas-de-interacción-2">Pruebas de interacción</a></li>
+  </ul></li>
+  <li><a href="#conclusiones" id="toc-conclusiones" class="nav-link" data-scroll-target="#conclusiones">Conclusiones</a></li>
   </ul>
 </nav>
 </div>
@@ -122,26 +148,1428 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="quarto" class="level2">
-<h2 class="anchored" data-anchor-id="quarto">Quarto</h2>
-<p>Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <a href="https://quarto.org" class="uri">https://quarto.org</a>.</p>
+<p>El presente estudio tiene como objetivo analizar la distribución espacial de los accidentes de tránsito ocurridos en la ciudad de Nueva York. Un patrón de puntos espacial consiste en un conjunto de ubicaciones donde ocurren eventos de interés, las cuales no están predeterminadas por un mecanismo de muestreo. El análisis busca determinar si la localización de estos siniestros sigue un patrón aleatorio o si, por el contrario, existen factores espaciales que provocan su concentración (agregación) o dispersión (regularidad) en ciertas zonas de la ciudad.</p>
+<p>La hipótesis nula de partida es la Aleatoriedad Espacial Completa (CSR, por sus siglas en inglés). Un proceso CSR implica que los eventos se distribuyen de manera uniforme e independiente en el área de estudio. Para verificar esta hipótesis, se emplearán diversas técnicas estadísticas de primer y segundo orden</p>
+<section id="exploración-espacial" class="level1">
+<h1>Exploración espacial</h1>
+<p>El primer paso consiste en la representación gráfica de las ubicaciones de los accidentes. Como se observa en el mapa de puntos inicial, los eventos no parecen estar distribuidos de manera uniforme en la ventana de observación.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Visualmente, se aprecian zonas con alta densidad de puntos, particularmente en las áreas que corresponden a Manhattan y Brooklyn, sugiriendo un patrón de agregación.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
 </section>
-<section id="running-code" class="level2">
-<h2 class="anchored" data-anchor-id="running-code">Running Code</h2>
-<p>When you click the <strong>Render</strong> button a document will be generated that includes both content and the output of embedded code. You can embed code like this:</p>
+<section id="pruebas-de-aleatoriedad" class="level1">
+<h1>Pruebas de aleatoriedad</h1>
+<section id="prueba-de-cuadrantes" class="level2">
+<h2 class="anchored" data-anchor-id="prueba-de-cuadrantes">Prueba de cuadrantes</h2>
+<p>Para cuantificar esta primera impresión, se realiza una prueba de bondad de ajuste <span class="math inline">\(\chi^2\)</span> . Este método consiste en dividir la región de estudio en una grilla de cuadrantes disjuntos y comparar el número de eventos <span class="math inline">\(n_i\)</span> observados en cada celda con el número esperado bajo un proceso CSR <span class="math inline">\(\bar{n}\)</span>. El estadístico de prueba es:</p>
+<p><span class="math display">\[
+\chi^2_0=\frac{\sum_{i=1}^L(n_i-\bar{n})^2}{\bar{n}}\sim\chi^2_{(L-1)}
+\]</span></p>
+<p>Se evaluaron tres configuraciones de grilla para asegurar la robustez del resultado:</p>
+<ul>
+<li><strong>Cuadricula 4x4:</strong> Se obtuvo Se obtuvo un estadístico <span class="math inline">\(\chi^2 =2750\)</span> con 15 grados de libertad y un <span class="math inline">\(p-valor&lt;2.2e-16\)</span>.</li>
+</ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span> <span class="sc">+</span> <span class="dv">1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 2</code></pre>
+<pre><code>
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes
+X2 = 2750, df = 15, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Quadrats: 4 by 4 grid of tiles</code></pre>
 </div>
 </div>
-<p>You can add options to executable code like this</p>
+<ul>
+<li><strong>Cuadrícula 6x6:</strong> El estadístico fue <span class="math inline">\(\chi^2 =3889\)</span> con 35 grados de libertad y un <span class="math inline">\(p-valor &lt; 2.2e-16\)</span>.</li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes
+X2 = 3889, df = 35, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Quadrats: 6 by 6 grid of tiles</code></pre>
+</div>
+</div>
+<ul>
+<li><strong>Cuadrícula 10x10:</strong> Se obtuvo <span class="math inline">\(\chi^2 =4993.5\)</span> con 99 grados de libertad y un <span class="math inline">\(p-valor &lt; 2.2e-16\)</span>.</li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes
+X2 = 4993.5, df = 99, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Quadrats: 10 by 10 grid of tiles</code></pre>
+</div>
+</div>
+<p>En los tres casos, el p-valor es extremadamente bajo, lo que lleva a rechazar la hipótesis nula de CSR. Los eventos no se distribuyen de forma aleatoria y homogénea en la ciudad.</p>
+</section>
+<section id="prueba-de-distancias" class="level2">
+<h2 class="anchored" data-anchor-id="prueba-de-distancias">Prueba de distancias</h2>
+<p>Como alternativa a la prueba de cuadrantes, que puede ser sensible al tamaño y número de las celdas, se utilizan métodos basados en las distancias entre los eventos.</p>
+<ul>
+<li><strong>Función G:</strong> Esta función analiza la distribución de las distancias desde cada evento a su vecino más cercano. En el gráfico la curva observada se sitúa muy por encima de la curva teórica bajo CSR y de la banda de confianza generada por simulación. Esto indica que las distancias al vecino más cercano son, en general, mucho más cortas de lo que se esperaría en un patrón aleatorio, lo cual es una clara evidencia de agregación o clustering.</li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<ul>
+<li><strong>Test de Hopkins-Skellam:</strong> Esta prueba compara la distribución de distancias entre eventos con la distribución de distancias entre puntos aleatorios y eventos. El resultado de la prueba arroja un <span class="math inline">\(p-valor &lt; 2.2e-16\)</span>, lo que nuevamente lleva a rechazar la hipótesis de CSR.</li>
+</ul>
 <div class="cell">
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 4</code></pre>
+<pre><code>
+    Hopkins-Skellam test of CSR
+    using F distribution
+
+data:  accidentes
+A = 0.0022733, p-value &lt; 2.2e-16
+alternative hypothesis: two-sided</code></pre>
 </div>
 </div>
-<p>The <code>echo: false</code> option disables the printing of code (only output is displayed).</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.4925605</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="estimación-de-intensidad" class="level1">
+<h1>Estimación de intensidad</h1>
+<p>La intensidad <span class="math inline">\(\lambda(s)\)</span>, se define como el número esperado de eventos por unidad de área. Dado que se ha rechazado la hipótesis de homogeneidad, es de interés estimar cómo varía esta intensidad en el espacio.</p>
+<section id="modelo-paramétrico" class="level2">
+<h2 class="anchored" data-anchor-id="modelo-paramétrico">Modelo paramétrico</h2>
+<section id="modelo-media-constante" class="level3">
+<h3 class="anchored" data-anchor-id="modelo-media-constante">Modelo media constante</h3>
+<p>Se ajustó un modelo de Proceso de Poisson Homogéneo. La intensidad estimada es de <span class="math inline">\(9.67×10 −7\)</span> puntos por unidad cuadrada. Sin embargo, este modelo no es adecuado, como ya demostraron las pruebas de CSR.</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Point process model
+Fitted to data: accidentes
+Fitting method: maximum likelihood
+Model was fitted analytically
+Call:
+ppm.ppp(Q = accidentes, trend = ~1)
+Edge correction: "border"
+    [border correction distance r = 0 ]
+--------------------------------------------------------------------------------
+Quadrature scheme (Berman-Turner) = data + dummy + weights
+
+Data pattern:
+Planar point pattern:  2000 points
+Average intensity 9.67e-07 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+
+Dummy quadrature points:
+     90 x 90 grid of dummy points, plus 4 corner points
+     dummy spacing: 508.217 x 502.343 units
+
+Original dummy parameters: =
+Planar point pattern:  8104 points
+Average intensity 3.92e-06 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+Quadrature weights:
+     (counting weights based on 90 x 90 array of rectangular tiles)
+All weights:
+    range: [25500, 255000]  total: 2.07e+09
+Weights on data points:
+    range: [25500, 128000]  total: 1.78e+08
+Weights on dummy points:
+    range: [25500, 255000]  total: 1.89e+09
+--------------------------------------------------------------------------------
+FITTED :
+
+Stationary Poisson process
+
+---- Intensity: ----
+
+
+Uniform intensity:
+[1] 9.671536e-07
+
+             Estimate       S.E.   CI95.lo   CI95.hi Ztest     Zval
+log(lambda) -13.84891 0.02236068 -13.89273 -13.80508   *** -619.342
+
+----------- gory details -----
+
+Fitted regular parameters (theta):
+log(lambda) 
+  -13.84891 
+
+Fitted exp(theta):
+ log(lambda) 
+9.671536e-07 </code></pre>
+</div>
+</div>
+</section>
+<section id="modelo-media-no-constante" class="level3">
+<h3 class="anchored" data-anchor-id="modelo-media-no-constante">Modelo media no constante</h3>
+<p>Se ajustó un modelo donde la intensidad varía espacialmente en función de las coordenadas. Los coeficientes del modelo resultaron significativos, indicando la presencia de un gradiente de intensidad a lo largo del mapa.</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Error in solve.default(M) : 
+  system is computationally singular: reciprocal condition number = 3.50432e-19</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Error in solve.default(M) : 
+  system is computationally singular: reciprocal condition number = 3.50432e-19</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Point process model
+Fitted to data: accidentes
+Fitting method: maximum likelihood (Berman-Turner approximation)
+Model was fitted using glm()
+Algorithm converged
+Call:
+ppm.ppp(Q = accidentes, trend = ~x + y)
+Edge correction: "border"
+    [border correction distance r = 0 ]
+--------------------------------------------------------------------------------
+Quadrature scheme (Berman-Turner) = data + dummy + weights
+
+Data pattern:
+Planar point pattern:  2000 points
+Average intensity 9.67e-07 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+
+Dummy quadrature points:
+     90 x 90 grid of dummy points, plus 4 corner points
+     dummy spacing: 508.217 x 502.343 units
+
+Original dummy parameters: =
+Planar point pattern:  8104 points
+Average intensity 3.92e-06 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+Quadrature weights:
+     (counting weights based on 90 x 90 array of rectangular tiles)
+All weights:
+    range: [25500, 255000]  total: 2.07e+09
+Weights on data points:
+    range: [25500, 128000]  total: 1.78e+08
+Weights on dummy points:
+    range: [25500, 255000]  total: 1.89e+09
+--------------------------------------------------------------------------------
+FITTED :
+
+Nonstationary Poisson process
+
+---- Intensity: ----
+
+Log intensity: ~x + y
+
+Fitted trend coefficients:
+  (Intercept)             x             y 
+-9.614535e+01  3.110373e-05  1.418920e-05 
+
+----------- gory details -----
+
+Fitted regular parameters (theta):
+  (Intercept)             x             y 
+-9.614535e+01  3.110373e-05  1.418920e-05 
+
+Fitted exp(theta):
+ (Intercept)            x            y 
+1.756328e-42 1.000031e+00 1.000014e+00 </code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="modelo-no-paramétricos" class="level2">
+<h2 class="anchored" data-anchor-id="modelo-no-paramétricos">Modelo no paramétricos</h2>
+<p>Para obtener una visión más flexible de la intensidad, sin imponer una forma funcional específica, se utilizó una estimación por kernel. El mapa de calor resultante muestra claramente las zonas de alta concentración de accidentes . Se observa que la mayor intensidad se localiza en el centro y sur de Manhattan, así como en áreas densamente pobladas de Brooklyn y el Bronx, mientras que en zonas como Staten Island la intensidad es notablemente menor. Esto confirma que el proceso es no homogéneo.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="pruebas-de-interacción" class="level1">
+<h1>Pruebas de interacción</h1>
+<p>Las propiedades de segundo orden describen la correlación espacial o la interacción entre los eventos a diferentes distancias. Dado que el proceso es no homogéneo, se utilizan las versiones de las funciones <em>K</em>, <em>L</em> y <em>g</em> para procesos inhomogéneos.</p>
+<section id="función-k-de-ripley" class="level2">
+<h2 class="anchored" data-anchor-id="función-k-de-ripley">Función K de Ripley</h2>
+<p>El gráfico de la función <em>K</em> muestra que la curva observada se encuentra por encima de la curva teórica y de la banda de confianza. Esto indica que, para todas las distancias analizadas, hay un número mayor de eventos de lo esperado bajo un proceso aleatorio, confirmando la agregación a múltiples escalas.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="función-l-de-besag" class="level2">
+<h2 class="anchored" data-anchor-id="función-l-de-besag">Función L de Besag</h2>
+<p>Esta es una transformación de la función <em>K</em> que estabiliza la varianza y facilita la interpretación. Bajo CSR <span class="math inline">\(L(r)=r\)</span>. El gráfico muestra que la curva observada está por encima de la línea teórica, lo que ratifica el patrón de agregación.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="función-de-correlación-por-pares-g" class="level2">
+<h2 class="anchored" data-anchor-id="función-de-correlación-por-pares-g">Función de correlación por pares (g)</h2>
+<p>Esta función puede interpretarse como la densidad de puntos a una distancia <span class="math inline">\(r\)</span> de un punto arbitrario, dividida por la intensidad del proceso. Para un proceso agregado, se esperan valores de <span class="math inline">\(g(r)&gt;1\)</span> para distancias cortas.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>El gráfico de la función <span class="math inline">\(g(r)\)</span> muestra valores significativamente mayores a 1 para distancias cortas, que luego tienden a 1 a medida que la distancia aumenta. Esto indica una fuerte atracción o agrupación a corta distancia entre los eventos.</p>
+</section>
+</section>
+<section id="análisis-con-marcas" class="level1">
+<h1>Análisis con marcas</h1>
+<p>En esta sección, se profundiza el análisis considerando que cada evento (accidente) tiene una característica o “marca” asociada: el número de personas heridas. Los accidentes se clasificaron en tres categorías:</p>
+<ul>
+<li><p>0 heridos (Marca: 0).</p></li>
+<li><p>1-2 heridos (Marca: 1-2).</p></li>
+<li><p>3 o más heridos (Marca: 3+).</p></li>
+</ul>
+<p>El objetivo es determinar si el patrón espacial de los accidentes es independiente de su gravedad o si existen patrones de interacción entre las diferentes categorías.</p>
+<section id="exploración-espacial-1" class="level2">
+<h2 class="anchored" data-anchor-id="exploración-espacial-1">Exploración espacial</h2>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Var1</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">0</td>
+<td style="text-align: right;">1469</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">1-2</td>
+<td style="text-align: right;">403</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">3+</td>
+<td style="text-align: right;">128</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>A primera vista, se observa que las diferentes marcas no están segregadas en distintas partes de la ciudad. Por el contrario, aparecen mezcladas dentro de las mismas zonas de alta concentración, lo que sugiere que los accidentes de distinta gravedad tienden a ocurrir en los mismos lugares.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Marked planar point pattern:  2000 points
+Average intensity 9.671536e-07 points per square unit
+
+*Pattern contains duplicated points*
+
+Coordinates are given to 10 decimal places
+
+Multitype:
+    frequency proportion    intensity
+0        1469     0.7345 7.103743e-07
+1-2       403     0.2015 1.948814e-07
+3+        128     0.0640 6.189783e-08
+
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units</code></pre>
+</div>
+</div>
+<p>Esta visualización confirma que cada categoría, por sí sola, exhibe un patrón de agregación. Los accidentes con 0 heridos son los más numerosos y definen el patrón general. Los accidentes con 3 o más heridos, aunque son menos frecuentes, también aparecen claramente agrupados en lugar de dispersos por toda la ciudad.</p>
+</section>
+<section id="pruebas-de-aleatoriedad-1" class="level2">
+<h2 class="anchored" data-anchor-id="pruebas-de-aleatoriedad-1">Pruebas de aleatoriedad</h2>
+<section id="prueba-de-cuadrantes-1" class="level3">
+<h3 class="anchored" data-anchor-id="prueba-de-cuadrantes-1">Prueba de cuadrantes</h3>
+<p>Se aplicó la prueba de bondad de ajuste <span class="math inline">\(\chi^2\)</span> de manera independiente para cada categoría de marca.</p>
+<ul>
+<li><strong>Cuadrante 4x4</strong></li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-21-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes_split
+X2 = 2779.1, df = 45, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Pooled test
+Quadrats of component tests:
+List of spatial objects
+
+0:
+4 by 4 grid of tiles
+
+1-2:
+4 by 4 grid of tiles
+
+3+:
+4 by 4 grid of tiles</code></pre>
+</div>
+</div>
+<ul>
+<li><strong>Cuadrante 6x6</strong></li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes_split
+X2 = 3942.1, df = 105, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Pooled test
+Quadrats of component tests:
+List of spatial objects
+
+0:
+6 by 6 grid of tiles
+
+1-2:
+6 by 6 grid of tiles
+
+3+:
+6 by 6 grid of tiles</code></pre>
+</div>
+</div>
+<ul>
+<li><strong>Cuadrante 10x10</strong></li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes_split
+X2 = 5224.2, df = 297, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Pooled test
+Quadrats of component tests:
+List of spatial objects
+
+0:
+10 by 10 grid of tiles
+
+1-2:
+10 by 10 grid of tiles
+
+3+:
+10 by 10 grid of tiles</code></pre>
+</div>
+</div>
+<p>Para las tres categorías de accidentes (0, 1-2, y 3+ heridos), los resultados de la prueba <span class="math inline">\(\chi^2\)</span> arrojaron p-valores inferiores a <span class="math inline">\(2.2e-16\)</span>. Esto permite rechazar de forma estadísticamente significativa la hipótesis de Aleatoriedad Espacial Completa (CSR) para cada grupo por separado. La conclusión es que el patrón de agregación no es exclusivo de un tipo de accidente, sino una característica presente en todos los niveles de gravedad.</p>
+</section>
+<section id="prueba-de-distancias-1" class="level3">
+<h3 class="anchored" data-anchor-id="prueba-de-distancias-1">Prueba de distancias</h3>
+<p>Se calculó una matriz de funciones G para analizar tanto la agregación dentro de cada categoría como la interacción entre ellas.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Los gráficos que se encuentran sobre la diagonal muestran que la curva observada está por encima de la teórica. Esto confirma que los accidentes de 0 heridos se agrupan con otros de 0 heridos, los de 1-2 heridos se agrupan entre sí, y los de 3+ heridos también se agrupan entre ellos.</p>
+<p>Los gráficos que cruzan categorías es decir los que se encuentran fuera de la diagonal también muestran que la curva observada supera a la teórica. Esto indica una atracción espacial entre los diferentes tipos de accidentes. Significa que es común encontrar accidentes de distinta gravedad ocurriendo en las mismas zonas. No hay evidencia de que los accidentes graves ocurran en lugares distintos a los leves; por el contrario, comparten las mismas zonas de riesgo.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-25-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="estimación-de-intensidad-1" class="level2">
+<h2 class="anchored" data-anchor-id="estimación-de-intensidad-1">Estimación de intensidad</h2>
+<section id="modelo-paramétrico-1" class="level3">
+<h3 class="anchored" data-anchor-id="modelo-paramétrico-1">Modelo paramétrico</h3>
+<section id="modelo-media-constante-1" class="level4">
+<h4 class="anchored" data-anchor-id="modelo-media-constante-1">Modelo media constante</h4>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Point process model
+Fitted to data: accidentes_marca
+Fitting method: maximum likelihood
+Model was fitted analytically
+Call:
+ppm.ppp(Q = accidentes_marca, trend = ~1)
+Edge correction: "border"
+    [border correction distance r = 0 ]
+--------------------------------------------------------------------------------
+Quadrature scheme (Berman-Turner) = data + dummy + weights
+
+Data pattern:
+Marked planar point pattern:  2000 points
+Average intensity 9.67e-07 points per square unit
+Multitype:
+    frequency proportion intensity
+0        1470      0.734  7.10e-07
+1-2       403      0.202  1.95e-07
+3+        128      0.064  6.19e-08
+
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+
+Dummy quadrature points:
+     90 x 90 grid of dummy points, plus 4 corner points
+     dummy spacing: 508.217 x 502.343 units
+
+Original dummy parameters: =
+Marked planar point pattern:  28312 points
+Average intensity 1.37e-05 points per square unit
+Multitype:
+    frequency proportion intensity
+0        8640      0.305  4.18e-06
+1-2      9700      0.343  4.69e-06
+3+       9980      0.352  4.82e-06
+
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+Quadrature weights:
+     (counting weights based on 90 x 90 array of rectangular tiles)
+All weights:
+    range: [25500, 255000]  total: 6.2e+09
+Weights on data points:
+    range: [25500, 128000]  total: 1.78e+08
+Weights on dummy points:
+    range: [25500, 255000]  total: 6.03e+09
+--------------------------------------------------------------------------------
+FITTED :
+
+Stationary multitype Poisson process
+Possible marks:
+0 1-2 3+
+---- Intensity: ----
+
+
+Uniform intensity for each mark level:
+[1] 3.223845e-07
+
+             Estimate       S.E.   CI95.lo   CI95.hi Ztest      Zval
+log(lambda) -14.94752 0.02236068 -14.99135 -14.90369   *** -668.4735
+
+----------- gory details -----
+
+Fitted regular parameters (theta):
+log(lambda) 
+  -14.94752 
+
+Fitted exp(theta):
+ log(lambda) 
+3.223845e-07 </code></pre>
+</div>
+</div>
+</section>
+<section id="modelo-media-no-constante-1" class="level4">
+<h4 class="anchored" data-anchor-id="modelo-media-no-constante-1">Modelo media no constante</h4>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Point process model
+Fitted to data: accidentes_marca
+Fitting method: maximum likelihood (Berman-Turner approximation)
+Model was fitted using glm()
+Algorithm converged
+Call:
+ppm.ppp(Q = accidentes_marca, trend = ~marks)
+Edge correction: "border"
+    [border correction distance r = 0 ]
+--------------------------------------------------------------------------------
+Quadrature scheme (Berman-Turner) = data + dummy + weights
+
+Data pattern:
+Marked planar point pattern:  2000 points
+Average intensity 9.67e-07 points per square unit
+Multitype:
+    frequency proportion intensity
+0        1470      0.734  7.10e-07
+1-2       403      0.202  1.95e-07
+3+        128      0.064  6.19e-08
+
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+
+Dummy quadrature points:
+     90 x 90 grid of dummy points, plus 4 corner points
+     dummy spacing: 508.217 x 502.343 units
+
+Original dummy parameters: =
+Marked planar point pattern:  28312 points
+Average intensity 1.37e-05 points per square unit
+Multitype:
+    frequency proportion intensity
+0        8640      0.305  4.18e-06
+1-2      9700      0.343  4.69e-06
+3+       9980      0.352  4.82e-06
+
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+Quadrature weights:
+     (counting weights based on 90 x 90 array of rectangular tiles)
+All weights:
+    range: [25500, 255000]  total: 6.2e+09
+Weights on data points:
+    range: [25500, 128000]  total: 1.78e+08
+Weights on dummy points:
+    range: [25500, 255000]  total: 6.03e+09
+--------------------------------------------------------------------------------
+FITTED :
+
+Stationary multitype Poisson process
+Possible marks:
+0 1-2 3+
+---- Intensity: ----
+
+Log intensity: ~marks
+
+Intensities:
+      beta_0     beta_1-2      beta_3+ 
+7.103743e-07 1.948814e-07 6.189783e-08 
+
+              Estimate       S.E.    CI95.lo    CI95.hi Ztest       Zval
+(Intercept) -14.157474 0.02609090 -14.208611 -14.106337   *** -542.62109
+marks1-2     -1.293401 0.05623277  -1.403615  -1.183186   ***  -23.00083
+marks3+      -2.440307 0.09215875  -2.620935  -2.259679   ***  -26.47938
+
+----------- gory details -----
+
+Fitted regular parameters (theta):
+(Intercept)    marks1-2     marks3+ 
+ -14.157474   -1.293401   -2.440307 
+
+Fitted exp(theta):
+ (Intercept)     marks1-2      marks3+ 
+7.103743e-07 2.743363e-01 8.713411e-02 </code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="modelo-no-paramétrico" class="level3">
+<h3 class="anchored" data-anchor-id="modelo-no-paramétrico">Modelo no paramétrico</h3>
+<p>Se generaron mapas de densidad para estimar la función de intensidad de cada tipo de accidente de forma no paramétrica.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-28-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Los mapas de intensidad confirman visualmente los hallazgos anteriores. Muestran que las zonas de mayor concentración son geográficamente consistentes para las tres categorías. Esto refuerza la conclusión de que, aunque la frecuencia de cada tipo de accidente varía, las ubicaciones de alto riesgo son comunes para todos.</p>
+</section>
+</section>
+<section id="pruebas-de-interacción-1" class="level2">
+<h2 class="anchored" data-anchor-id="pruebas-de-interacción-1">Pruebas de interacción</h2>
+<p>Se calcularon las funciones de segundo orden para procesos no homogéneos para obtener un análisis más robusto de la interacción, corrigiendo por la variación en la intensidad de cada marca.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-29-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-30-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-31-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Las curvas de la Función L de Besag por encima de la línea de referencia indican atracción entre las marcas a diversas escalas espaciales.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-32-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-33-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>La función de correlación por pares muestra valores <span class="math inline">\(&gt; 1\)</span> a distancias cortas, lo que refuerza la idea de que la probabilidad de encontrar un accidente de tipo <span class="math inline">\(j\)</span> cerca de un accidente de tipo <span class="math inline">\(i\)</span> es mayor que si los procesos fueran independientes.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-34-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>El análisis por marcas confirma que el patrón de agregación es una característica intrínseca de los accidentes de tránsito en NYC, independientemente de su gravedad. La fuerte atracción espacial entre las diferentes categorías sugiere que todos los tipos de accidentes comparten las mismas zonas de riesgo subyacentes, probablemente definidas por la alta densidad de tráfico, la complejidad de la infraestructura vial y la concentración de actividad humana. La mayor concentración de los accidentes más graves en puntos específicos justifica una atención prioritaria en esas intersecciones y corredores viales para la implementación de medidas de seguridad vial.</p>
+</section>
+</section>
+<section id="análisis-por-tiempo" class="level1">
+<h1>Análisis por tiempo</h1>
+<p>Este análisis compara los patrones de accidentes en Invierno, Primavera y Verano para evaluar si existen variaciones espaciales significativas a lo largo del año.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Var1</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Invierno</td>
+<td style="text-align: right;">745</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Primavera</td>
+<td style="text-align: right;">578</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Verano</td>
+<td style="text-align: right;">677</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<section id="exploración-espacial-2" class="level2">
+<h2 class="anchored" data-anchor-id="exploración-espacial-2">Exploración espacial</h2>
+<p>La inspección visual de los mapas no revela diferencias notorias en la distribución espacial de los accidentes. Los principales conglomerados parecen estar en las mismas ubicaciones, independientemente de la estación.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-37-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="pruebas-de-aleatoriedad-2" class="level2">
+<h2 class="anchored" data-anchor-id="pruebas-de-aleatoriedad-2">Pruebas de aleatoriedad</h2>
+<section id="prueba-de-cuadrantes-2" class="level3">
+<h3 class="anchored" data-anchor-id="prueba-de-cuadrantes-2">Prueba de cuadrantes</h3>
+<p>Se aplicó la prueba <span class="math inline">\(\chi^2\)</span> a los datos de cada estación por separado.</p>
+<ul>
+<li><strong>Cuadricula 4x4</strong></li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-38-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Estación: Invierno 
+
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes_estacion[[est]]
+X2 = 864.3, df = 15, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Quadrats: 4 by 4 grid of tiles
+Estación: Primavera 
+
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes_estacion[[est]]
+X2 = 866.93, df = 15, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Quadrats: 4 by 4 grid of tiles
+Estación: Verano 
+
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes_estacion[[est]]
+X2 = 1089.3, df = 15, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Quadrats: 4 by 4 grid of tiles</code></pre>
+</div>
+</div>
+<ul>
+<li><strong>Cuadricula 8x8</strong></li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-40-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Estación: Invierno 
+
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes_estacion[[est]]
+X2 = 1547.4, df = 63, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Quadrats: 8 by 8 grid of tiles
+Estación: Primavera 
+
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes_estacion[[est]]
+X2 = 1383.9, df = 63, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Quadrats: 8 by 8 grid of tiles
+Estación: Verano 
+
+    Chi-squared test of CSR using quadrat counts
+
+data:  accidentes_estacion[[est]]
+X2 = 1692.1, df = 63, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided
+
+Quadrats: 8 by 8 grid of tiles</code></pre>
+</div>
+</div>
+<p>Los resultados para Invierno, Primavera y Verano arrojan p-valores prácticamente nulos. Esto confirma que el patrón de accidentes es no aleatorio durante todo el año. La agregación espacial es una característica persistente.</p>
+</section>
+<section id="prueba-de-distancias-2" class="level3">
+<h3 class="anchored" data-anchor-id="prueba-de-distancias-2">Prueba de distancias</h3>
+<p>Se graficó la función G para cada una de las tres estaciones.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-42-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Los tres gráficos son casi idénticos. Todos muestran un claro patrón de agregación (curva observada por encima de la teórica). La similitud entre las curvas indica que la intensidad y la escala de la aglomeración de accidentes no cambian significativamente con la estación.</p>
+</section>
+</section>
+<section id="estimación-de-intensidad-2" class="level2">
+<h2 class="anchored" data-anchor-id="estimación-de-intensidad-2">Estimación de intensidad</h2>
+<section id="modelo-no-paramétrico-1" class="level3">
+<h3 class="anchored" data-anchor-id="modelo-no-paramétrico-1">Modelo no paramétrico</h3>
+<p>Se generaron mapas de calor para estimar la intensidad de los accidentes en cada estación.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-43-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Los mapas de intensidad son visualmente muy parecidos. Las zonas de mayor concentración se localizan en las mismas áreas geográficas en las tres estaciones. Esto refuerza la idea de que los factores que determinan la ubicación de los accidentes son estructurales y permanentes (como el diseño vial o la densidad de población) en lugar de estacionales (como el clima).</p>
+</section>
+</section>
+<section id="estimación-de-intensidad-3" class="level2">
+<h2 class="anchored" data-anchor-id="estimación-de-intensidad-3">Estimación de intensidad</h2>
+<section id="modelo-paramétrico-2" class="level3">
+<h3 class="anchored" data-anchor-id="modelo-paramétrico-2">Modelo paramétrico</h3>
+<section id="modelo-media-constante-2" class="level4">
+<h4 class="anchored" data-anchor-id="modelo-media-constante-2">Modelo media constante</h4>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>$Invierno
+Point process model
+Fitted to data: p
+Fitting method: maximum likelihood
+Model was fitted analytically
+Call:
+ppm.ppp(Q = p, trend = ~1)
+Edge correction: "border"
+    [border correction distance r = 0 ]
+--------------------------------------------------------------------------------
+Quadrature scheme (Berman-Turner) = data + dummy + weights
+
+Data pattern:
+Planar point pattern:  745 points
+Average intensity 3.6e-07 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+
+Dummy quadrature points:
+     60 x 60 grid of dummy points, plus 4 corner points
+     dummy spacing: 762.3255 x 753.5145 units
+
+Original dummy parameters: =
+Planar point pattern:  3604 points
+Average intensity 1.74e-06 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+Quadrature weights:
+     (counting weights based on 60 x 60 array of rectangular tiles)
+All weights:
+    range: [82100, 574000]  total: 2.07e+09
+Weights on data points:
+    range: [82100, 287000]  total: 1.6e+08
+Weights on dummy points:
+    range: [82100, 574000]  total: 1.91e+09
+--------------------------------------------------------------------------------
+FITTED :
+
+Stationary Poisson process
+
+---- Intensity: ----
+
+
+Uniform intensity:
+[1] 3.602647e-07
+
+             Estimate       S.E.   CI95.lo   CI95.hi Ztest      Zval
+log(lambda) -14.83643 0.03663717 -14.90823 -14.76462   *** -404.9556
+
+----------- gory details -----
+
+Fitted regular parameters (theta):
+log(lambda) 
+  -14.83643 
+
+Fitted exp(theta):
+ log(lambda) 
+3.602647e-07 
+
+$Primavera
+Point process model
+Fitted to data: p
+Fitting method: maximum likelihood
+Model was fitted analytically
+Call:
+ppm.ppp(Q = p, trend = ~1)
+Edge correction: "border"
+    [border correction distance r = 0 ]
+--------------------------------------------------------------------------------
+Quadrature scheme (Berman-Turner) = data + dummy + weights
+
+Data pattern:
+Planar point pattern:  578 points
+Average intensity 2.8e-07 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+
+Dummy quadrature points:
+     50 x 50 grid of dummy points, plus 4 corner points
+     dummy spacing: 914.7906 x 904.2174 units
+
+Original dummy parameters: =
+Planar point pattern:  2504 points
+Average intensity 1.21e-06 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+Quadrature weights:
+     (counting weights based on 50 x 50 array of rectangular tiles)
+All weights:
+    range: [118000, 827000] total: 2.07e+09
+Weights on data points:
+    range: [118000, 414000] total: 1.75e+08
+Weights on dummy points:
+    range: [118000, 827000] total: 1.89e+09
+--------------------------------------------------------------------------------
+FITTED :
+
+Stationary Poisson process
+
+---- Intensity: ----
+
+
+Uniform intensity:
+[1] 2.795074e-07
+
+             Estimate       S.E.   CI95.lo   CI95.hi Ztest      Zval
+log(lambda) -15.09024 0.04159452 -15.17176 -15.00871   *** -362.7939
+
+----------- gory details -----
+
+Fitted regular parameters (theta):
+log(lambda) 
+  -15.09024 
+
+Fitted exp(theta):
+ log(lambda) 
+2.795074e-07 
+
+$Verano
+Point process model
+Fitted to data: p
+Fitting method: maximum likelihood
+Model was fitted analytically
+Call:
+ppm.ppp(Q = p, trend = ~1)
+Edge correction: "border"
+    [border correction distance r = 0 ]
+--------------------------------------------------------------------------------
+Quadrature scheme (Berman-Turner) = data + dummy + weights
+
+Data pattern:
+Planar point pattern:  677 points
+Average intensity 3.27e-07 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+
+Dummy quadrature points:
+     60 x 60 grid of dummy points, plus 4 corner points
+     dummy spacing: 762.3255 x 753.5145 units
+
+Original dummy parameters: =
+Planar point pattern:  3604 points
+Average intensity 1.74e-06 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+Quadrature weights:
+     (counting weights based on 60 x 60 array of rectangular tiles)
+All weights:
+    range: [82100, 574000]  total: 2.07e+09
+Weights on data points:
+    range: [82100, 287000]  total: 1.49e+08
+Weights on dummy points:
+    range: [82100, 574000]  total: 1.92e+09
+--------------------------------------------------------------------------------
+FITTED :
+
+Stationary Poisson process
+
+---- Intensity: ----
+
+
+Uniform intensity:
+[1] 3.273815e-07
+
+             Estimate       S.E.   CI95.lo   CI95.hi Ztest      Zval
+log(lambda) -14.93214 0.03843312 -15.00747 -14.85681   *** -388.5227
+
+----------- gory details -----
+
+Fitted regular parameters (theta):
+log(lambda) 
+  -14.93214 
+
+Fitted exp(theta):
+ log(lambda) 
+3.273815e-07 </code></pre>
+</div>
+</div>
+</section>
+<section id="modelo-media-no-constante-2" class="level4">
+<h4 class="anchored" data-anchor-id="modelo-media-no-constante-2">Modelo media no constante</h4>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Error in solve.default(M) : 
+  system is computationally singular: reciprocal condition number = 3.51025e-19</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Error in solve.default(M) : 
+  system is computationally singular: reciprocal condition number = 3.51025e-19</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Error in solve.default(M) : 
+  system is computationally singular: reciprocal condition number = 3.46461e-19</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Error in solve.default(M) : 
+  system is computationally singular: reciprocal condition number = 3.46461e-19</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Error in solve.default(M) : 
+  system is computationally singular: reciprocal condition number = 3.52591e-19</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Error in solve.default(M) : 
+  system is computationally singular: reciprocal condition number = 3.52591e-19</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$Invierno
+Point process model
+Fitted to data: p
+Fitting method: maximum likelihood (Berman-Turner approximation)
+Model was fitted using glm()
+Algorithm converged
+Call:
+ppm.ppp(Q = p, trend = ~x + y)
+Edge correction: "border"
+    [border correction distance r = 0 ]
+--------------------------------------------------------------------------------
+Quadrature scheme (Berman-Turner) = data + dummy + weights
+
+Data pattern:
+Planar point pattern:  745 points
+Average intensity 3.6e-07 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+
+Dummy quadrature points:
+     60 x 60 grid of dummy points, plus 4 corner points
+     dummy spacing: 762.3255 x 753.5145 units
+
+Original dummy parameters: =
+Planar point pattern:  3604 points
+Average intensity 1.74e-06 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+Quadrature weights:
+     (counting weights based on 60 x 60 array of rectangular tiles)
+All weights:
+    range: [82100, 574000]  total: 2.07e+09
+Weights on data points:
+    range: [82100, 287000]  total: 1.6e+08
+Weights on dummy points:
+    range: [82100, 574000]  total: 1.91e+09
+--------------------------------------------------------------------------------
+FITTED :
+
+Nonstationary Poisson process
+
+---- Intensity: ----
+
+Log intensity: ~x + y
+
+Fitted trend coefficients:
+  (Intercept)             x             y 
+-9.504997e+01  3.299140e-05  1.347937e-05 
+
+----------- gory details -----
+
+Fitted regular parameters (theta):
+  (Intercept)             x             y 
+-9.504997e+01  3.299140e-05  1.347937e-05 
+
+Fitted exp(theta):
+ (Intercept)            x            y 
+5.251971e-42 1.000033e+00 1.000013e+00 
+
+$Primavera
+Point process model
+Fitted to data: p
+Fitting method: maximum likelihood (Berman-Turner approximation)
+Model was fitted using glm()
+Algorithm converged
+Call:
+ppm.ppp(Q = p, trend = ~x + y)
+Edge correction: "border"
+    [border correction distance r = 0 ]
+--------------------------------------------------------------------------------
+Quadrature scheme (Berman-Turner) = data + dummy + weights
+
+Data pattern:
+Planar point pattern:  578 points
+Average intensity 2.8e-07 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+
+Dummy quadrature points:
+     50 x 50 grid of dummy points, plus 4 corner points
+     dummy spacing: 914.7906 x 904.2174 units
+
+Original dummy parameters: =
+Planar point pattern:  2504 points
+Average intensity 1.21e-06 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+Quadrature weights:
+     (counting weights based on 50 x 50 array of rectangular tiles)
+All weights:
+    range: [118000, 827000] total: 2.07e+09
+Weights on data points:
+    range: [118000, 414000] total: 1.75e+08
+Weights on dummy points:
+    range: [118000, 827000] total: 1.89e+09
+--------------------------------------------------------------------------------
+FITTED :
+
+Nonstationary Poisson process
+
+---- Intensity: ----
+
+Log intensity: ~x + y
+
+Fitted trend coefficients:
+  (Intercept)             x             y 
+-1.132067e+02  3.178496e-05  1.760801e-05 
+
+----------- gory details -----
+
+Fitted regular parameters (theta):
+  (Intercept)             x             y 
+-1.132067e+02  3.178496e-05  1.760801e-05 
+
+Fitted exp(theta):
+ (Intercept)            x            y 
+6.838290e-50 1.000032e+00 1.000018e+00 
+
+$Verano
+Point process model
+Fitted to data: p
+Fitting method: maximum likelihood (Berman-Turner approximation)
+Model was fitted using glm()
+Algorithm converged
+Call:
+ppm.ppp(Q = p, trend = ~x + y)
+Edge correction: "border"
+    [border correction distance r = 0 ]
+--------------------------------------------------------------------------------
+Quadrature scheme (Berman-Turner) = data + dummy + weights
+
+Data pattern:
+Planar point pattern:  677 points
+Average intensity 3.27e-07 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+
+Dummy quadrature points:
+     60 x 60 grid of dummy points, plus 4 corner points
+     dummy spacing: 762.3255 x 753.5145 units
+
+Original dummy parameters: =
+Planar point pattern:  3604 points
+Average intensity 1.74e-06 points per square unit
+Window: rectangle = [563875.7, 609615.2] x [4484094, 4529305] units
+                    (45740 x 45210 units)
+Window area = 2067920000 square units
+Quadrature weights:
+     (counting weights based on 60 x 60 array of rectangular tiles)
+All weights:
+    range: [82100, 574000]  total: 2.07e+09
+Weights on data points:
+    range: [82100, 287000]  total: 1.49e+08
+Weights on dummy points:
+    range: [82100, 574000]  total: 1.92e+09
+--------------------------------------------------------------------------------
+FITTED :
+
+Nonstationary Poisson process
+
+---- Intensity: ----
+
+Log intensity: ~x + y
+
+Fitted trend coefficients:
+  (Intercept)             x             y 
+-8.617381e+01  2.848525e-05  1.208110e-05 
+
+----------- gory details -----
+
+Fitted regular parameters (theta):
+  (Intercept)             x             y 
+-8.617381e+01  2.848525e-05  1.208110e-05 
+
+Fitted exp(theta):
+ (Intercept)            x            y 
+3.760032e-38 1.000028e+00 1.000012e+00 </code></pre>
+</div>
+</div>
+</section>
+</section>
+</section>
+<section id="pruebas-de-interacción-2" class="level2">
+<h2 class="anchored" data-anchor-id="pruebas-de-interacción-2">Pruebas de interacción</h2>
+<p>Se calcularon las funciones K, L y de correlación por pares para cada estación, ajustando por la no homogeneidad del proceso.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-46-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-47-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Estas pruebas confirman de manera robusta los hallazgos anteriores. Los gráficos de las funciones K, L y pcf para Invierno, Primavera y Verano son notablemente similares, indicando en todos los casos un fuerte patrón de agregación. Esto demuestra la estabilidad del proceso espacial a lo largo del año. La estructura de dependencia espacial entre los eventos no presenta una variación estacional significativa.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="accidentes_trafico_files/figure-html/unnamed-chunk-48-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>El análisis comparativo entre estaciones demuestra que el patrón espacial de los accidentes de tránsito en NYC es estructuralmente estable y no presenta una variabilidad estacional significativa. La agregación espacial y la ubicación de las zonas de alta peligrosidad son consistentes durante todo el año.</p>
+<p>Esta conclusión sugiere que los principales factores que determinan dónde ocurren los accidentes son características permanentes del entorno urbano, tales como:</p>
+<ul>
+<li><p>La densidad de la red vial y la presencia de intersecciones complejas.</p></li>
+<li><p>La concentración de población y actividad económica.</p></li>
+<li><p>Los flujos de tráfico diarios.</p></li>
+</ul>
+<p>Aunque factores climáticos asociados a las estaciones (nieve en invierno, lluvia en primavera) pueden influir en el riesgo general de accidente, no parecen alterar fundamentalmente la geografía de la siniestralidad en la ciudad. Por lo tanto, las estrategias de prevención deben centrarse en estas características espaciales estructurales más que en intervenciones estacionales.</p>
+</section>
+</section>
+<section id="conclusiones" class="level1">
+<h1>Conclusiones</h1>
+<p>El análisis estadístico espacial de los accidentes de tránsito en la ciudad de Nueva York revela de manera concluyente que su distribución no es aleatoria. La hipótesis de Aleatoriedad Espacial Completa (CSR) fue rechazada consistentemente a través de múltiples pruebas, tanto de cuadrantes como basadas en distancias.</p>
+<p>Los principales hallazgos son:</p>
+<ol type="1">
+<li><p><strong>Patrón Agregado:</strong> Los accidentes tienden a concentrarse en clusters. Las funciones de segundo orden (<em>K</em>, <em>L</em> y <em>g</em>) demuestran que esta agregación ocurre a diferentes escalas espaciales, siendo particularmente fuerte a cortas distancias.</p></li>
+<li><p><strong>Proceso No Homogéneo:</strong> La intensidad de los accidentes no es constante en toda la ciudad. La estimación no paramétrica de la intensidad permitió identificar puntos de concentración o zonas de alta peligrosidad, principalmente en Manhattan, Brooklyn y el Bronx.</p></li>
+<li><p><strong>Consistencia del Patrón:</strong> El patrón de agregación se mantiene tanto al analizar los accidentes por su gravedad (número de heridos) como al dividirlos por estación del año. Esto sugiere que las causas subyacentes del clustering son de naturaleza estructural y persistente en el tiempo.</p></li>
+</ol>
+<p>Estos resultados son fundamentales para la gestión del tráfico y la seguridad vial. La identificación de zonas de alta siniestralidad permite a las autoridades enfocar recursos en intervenciones específicas, como mejoras en la infraestructura, aumento de la vigilancia o campañas de concienciación.</p>
 </section>
 
 </main>
