@@ -23,40 +23,6 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
-/* CSS for syntax highlighting */
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
-}
 </style>
 
 
@@ -70,6 +36,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="columbus_files/libs/bootstrap/bootstrap.min.js"></script>
 <link href="columbus_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="columbus_files/libs/bootstrap/bootstrap-1bc8a17f135ab3d594c857e9f48e611b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="columbus_files/libs/kePrint-0.0.1/kePrint.js"></script>
+
+<link href="columbus_files/libs/lightable-0.0.1/lightable.css" rel="stylesheet">
+
 
 
 </head>
@@ -111,8 +81,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">Table of contents</h2>
    
   <ul class="collapse">
-  <li><a href="#quarto" id="toc-quarto" class="nav-link active" data-scroll-target="#quarto">Quarto</a></li>
-  <li><a href="#running-code" id="toc-running-code" class="nav-link" data-scroll-target="#running-code">Running Code</a></li>
+  <li><a href="#matrices-de-vecindades" id="toc-matrices-de-vecindades" class="nav-link active" data-scroll-target="#matrices-de-vecindades">MATRICES DE VECINDADES</a></li>
+  <li><a href="#dispersogramas-de-moran" id="toc-dispersogramas-de-moran" class="nav-link" data-scroll-target="#dispersogramas-de-moran">Dispersogramas de Moran</a>
+  <ul class="collapse">
+  <li><a href="#índices-locales-de-getis-y-ord" id="toc-índices-locales-de-getis-y-ord" class="nav-link" data-scroll-target="#índices-locales-de-getis-y-ord">índices locales de Getis y Ord</a></li>
+  </ul></li>
+  <li><a href="#modelos-de-regresión-estimados" id="toc-modelos-de-regresión-estimados" class="nav-link" data-scroll-target="#modelos-de-regresión-estimados">MODELOS DE REGRESIÓN ESTIMADOS</a>
+  <ul class="collapse">
+  <li><a href="#selección-de-variables" id="toc-selección-de-variables" class="nav-link" data-scroll-target="#selección-de-variables">SELECCIÓN DE VARIABLES</a></li>
+  </ul></li>
+  <li><a href="#análisis-de-cluster" id="toc-análisis-de-cluster" class="nav-link" data-scroll-target="#análisis-de-cluster">ANÁLISIS DE CLUSTER</a>
+  <ul class="collapse">
+  <li><a href="#graficos-de-calidad-del-modelo" id="toc-graficos-de-calidad-del-modelo" class="nav-link" data-scroll-target="#graficos-de-calidad-del-modelo">GRAFICOS DE CALIDAD DEL MODELO</a></li>
+  </ul></li>
+  <li><a href="#conclusión" id="toc-conclusión" class="nav-link" data-scroll-target="#conclusión">CONCLUSIÓN</a></li>
   </ul>
 </nav>
 </div>
@@ -122,26 +104,737 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="quarto" class="level2">
-<h2 class="anchored" data-anchor-id="quarto">Quarto</h2>
-<p>Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <a href="https://quarto.org" class="uri">https://quarto.org</a>.</p>
+<section id="planteamiento-del-problema" class="level3">
+<h3 class="anchored" data-anchor-id="planteamiento-del-problema"><strong>Planteamiento del problema</strong></h3>
+<p>La criminalidad urbana representa un fenómeno complejo y multicausal que afecta de forma directa la calidad de vida de los ciudadanos. Su análisis y comprensión requieren enfoques que consideren no solo las características socioeconómicas de los territorios, sino también sus interrelaciones espaciales. En este contexto, las técnicas de análisis espacial permiten identificar patrones de dependencia y heterogeneidad que no pueden captarse mediante métodos estadísticos tradicionales.</p>
+<p>El presente estudio tiene como objetivo explorar y modelar espacialmente la distribución de los delitos (específicamente, robos residenciales y de vehículos) en los barrios de la ciudad de Columbus, Ohio, en el año 1980, a partir de una base de datos ampliamente utilizada en estudios geoespaciales. Se parte del supuesto de que los niveles de criminalidad en un barrio pueden estar influidos no solo por sus propias condiciones socioeconómicas, sino también por las de sus barrios vecinos. Para ello, se integran herramientas de estadística exploratoria espacial, construcción y comparación de matrices de ponderación espacial, índices de autocorrelación global y local, modelos de regresión espacial y análisis de clúster.</p>
 </section>
-<section id="running-code" class="level2">
-<h2 class="anchored" data-anchor-id="running-code">Running Code</h2>
-<p>When you click the <strong>Render</strong> button a document will be generated that includes both content and the output of embedded code. You can embed code like this:</p>
+<section id="objetivos" class="level3">
+<h3 class="anchored" data-anchor-id="objetivos"><strong>Objetivos</strong></h3>
+<p><strong>Objetivo general:</strong></p>
+<p>Analizar la distribución espacial de los niveles de criminalidad en los barrios de Columbus (1980) mediante técnicas de estadística espacial, modelos de regresión y análisis de clúster, a fin de identificar patrones territoriales, dependencias espaciales y factores socioeconómicos asociados.</p>
+<p><strong>Objetivos específicos:</strong></p>
+<ol type="1">
+<li><p>Realizar una estadística exploratoria espacial de los datos, mediante herramientas como boxmaps y visualización de conexiones espaciales, para distintas matrices de vecindad.</p></li>
+<li><p>Calcular y comparar índices de autocorrelación espacial global y local.</p></li>
+<li><p>Estimar modelos de regresión paramétricos espaciales que expliquen los niveles de criminalidad a partir de variables socioeconómicas y espaciales, evaluando supuestos, calidad del ajuste e interpretando los resultados.</p></li>
+<li><p>Aplicar técnicas de análisis de clúster espacial y comparar resultados según distintas matrices de vecindad ,, con el fin de caracterizar zonas homogéneas en cuanto a los niveles de criminalidad.</p></li>
+</ol>
+</section>
+<section id="descripción-de-variables" class="level3">
+<h3 class="anchored" data-anchor-id="descripción-de-variables"><strong>Descripción de variables</strong></h3>
+<p>En este estudio se utiliza la base de datos “Columbus Crime 1980”, que contiene información para 49 barrios de la ciudad de Columbus, Ohio. La variable de interés es la tasa de criminalidad, mientras que las variables explicativas o covariables corresponden a características socioeconómicas, de infraestructura y localización. A continuación se describen las variables utilizadas:</p>
+<ul>
+<li><p><strong>CRIME</strong>: Número de delitos residenciales y robos de vehículos por cada 1.000 hogares. Es la variable dependiente del estudio.</p></li>
+<li><p><strong>HOVAL</strong> : Valor promedio de la vivienda en miles de dólares. Se interpreta como una medida del nivel económico del barrio.</p></li>
+<li><p><strong>INC</strong> : Ingreso promedio de los hogares en miles de dólares. También refleja el nivel socioeconómico de los residentes.</p></li>
+<li><p><strong>OPEN</strong> : Área de espacio abierto en el barrio. Puede relacionarse con planificación urbana o disponibilidad de espacios públicos.</p></li>
+<li><p><strong>PLUMB</strong> : Porcentaje de viviendas sin acceso a servicios de plomería. Indica condiciones deficientes de infraestructura.</p></li>
+<li><p><strong>DISCBD</strong> : Distancia al centro de negocios de la ciudad. Se considera una variable de localización geográfica con posible relación con el acceso a servicios y oportunidades.</p></li>
+<li><p><strong>CP</strong> : Variable binaria que indica si el barrio pertenece al núcleo urbano (1) o a la periferia (0), útil para capturar diferencias estructurales en la distribución de la criminalidad.</p></li>
+</ul>
+<p>Estas variables permitirán evaluar no solo los factores asociados a la criminalidad en cada barrio, sino también los posibles efectos espaciales que influyen en su distribución geográfica.</p>
+<p>A continuación, se presenta el mapa de Columbus con su división por vecindarios y sus respectivos centroides</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span> <span class="sc">+</span> <span class="dv">1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 2</code></pre>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
 </div>
 </div>
-<p>You can add options to executable code like this</p>
+</div>
+</section>
+<section id="análisis-exploratorio-espacial-de-los-datos" class="level3">
+<h3 class="anchored" data-anchor-id="análisis-exploratorio-espacial-de-los-datos"><strong>Análisis exploratorio espacial de los datos</strong></h3>
+<p>Como primer acercamiento a los datos, se realizaron mapas temáticos para observar la distribución espacial tanto de la variable dependiente (tasa de criminalidad) como de las covariables seleccionadas. Esta exploración permite identificar patrones geográficos iniciales que podrían ser relevantes en el análisis posterior.</p>
 <div class="cell">
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 4</code></pre>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
 </div>
 </div>
-<p>The <code>echo: false</code> option disables the printing of code (only output is displayed).</p>
+</div>
+<p>En el primer mapa, se observa claramente un patrón espacial en la distribución de la criminalidad. Los vecindarios ubicados en el centro de la ciudad de Columbus presentan las tasas más altas de delitos por cada 1.000 hogares, con valores que oscilan entre 39,03 y 68,89. Por el contrario, las zonas periféricas muestran tasas de criminalidad considerablemente más bajas. Este gradiente centro-periferia sugiere la existencia de dependencia espacial y posibles factores estructurales que contribuyen a la concentración de delitos en áreas céntricas.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Al observar los mapas de las covariables, se identifican varios patrones de interés:</p>
+<ul>
+<li><p>El valor de la vivienda y el ingreso del hogar muestran valores más bajos en las zonas céntricas y más altos en la periferia, lo que sugiere una posible relación inversa con la criminalidad.</p></li>
+<li><p>El porcentaje de viviendas sin plomería se concentra en los vecindarios del centro, coincidiendo con las zonas de mayor criminalidad.</p></li>
+<li><p>El área de espacio abierto no presenta un patrón espacial definido.</p></li>
+<li><p>La distancia al centro urbano y el indicador centro-periferia muestran relaciones esperadas por construcción.</p></li>
+</ul>
+<p>En conjunto, los mapas revelan que los vecindarios centrales tienden a concentrar condiciones socioeconómicas más precarias, lo que puede estar asociado a una mayor incidencia delictiva.</p>
+<p>Además de los mapas, se calculó la matriz de correlación entre las variables de interés. Los resultados confirman los patrones observados en la exploración espacial. La variable CRIME muestra correlaciones negativas moderadas a fuertes con variables socioeconómicas como HOVAL (−0.57), INC (−0.70) y DISCBD (−0.74), indicando que mayores niveles de ingreso, valor de vivienda o distancia al centro urbano se asocian con menores niveles de criminalidad. Por el contrario, muestra correlaciones positivas con PLUMB (0.43) y especialmente con CP (0.75), lo que respalda la idea de que los barrios céntricos y con menor infraestructura básica presentan mayores tasas delictivas. En general, los coeficientes refuerzan la existencia de relaciones estructurales entre las variables socioeconómicas, de localización y la criminalidad.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="matrices-de-vecindades" class="level1">
+<h1>MATRICES DE VECINDADES</h1>
+<p>Con el objetivo de explorar la estructura espacial del fenómeno delictivo en Columbus (1980), se definieron diversas matrices de pesos espaciales que describen la relación de vecindad entre los barrios. Estas matrices fueron construidas a partir de distintos criterios: contigüidad (Rook y Queen), grafos geométricos (Triangulación, SOI, Gabriel, Relativa) y proximidad (k vecinos más cercanos, con k = 1, 2, 3, 4), tanto en versiones binarias como ponderadas.</p>
+<p>Para cada una de estas 20 matrices, se calculó el índice de Moran Global para la variable CRIME, junto con su valor-p asociado, con el fin de evaluar la presencia de autocorrelación espacial significativa. La siguiente tabla muestra los resultados obtenidos, ordenados de mayor a menor según el valor del índice de Moran. Se observa que todos los valores son positivos y altamente significativos, lo cual confirma la existencia de una fuerte dependencia espacial en los niveles de criminalidad registrados en los barrios de la ciudad.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Índices de Moran ordenados (de mayor a menor)</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Matriz</th>
+<th style="text-align: center;">Índice de Moran</th>
+<th style="text-align: center;">Valor p</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">KNN 2 Binaria</td>
+<td style="text-align: center;">0.6073</td>
+<td style="text-align: center;">0.0000015</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">KNN 2 Ponderada</td>
+<td style="text-align: center;">0.6073</td>
+<td style="text-align: center;">0.0000015</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Relativa Binaria</td>
+<td style="text-align: center;">0.6014</td>
+<td style="text-align: center;">0.0000008</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">KNN 4 Binaria</td>
+<td style="text-align: center;">0.5995</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">KNN 4 Ponderada</td>
+<td style="text-align: center;">0.5995</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">KNN 1 Binaria</td>
+<td style="text-align: center;">0.5986</td>
+<td style="text-align: center;">0.0003945</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">KNN 1 Ponderada</td>
+<td style="text-align: center;">0.5986</td>
+<td style="text-align: center;">0.0003945</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Relativa Ponderada</td>
+<td style="text-align: center;">0.5929</td>
+<td style="text-align: center;">0.0000028</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Gabriel Binaria</td>
+<td style="text-align: center;">0.5743</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">KNN 3 Binaria</td>
+<td style="text-align: center;">0.5657</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">KNN 3 Ponderada</td>
+<td style="text-align: center;">0.5657</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Gabriel Ponderada</td>
+<td style="text-align: center;">0.5610</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">SOI Ponderada</td>
+<td style="text-align: center;">0.5565</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Triangulación Ponderada</td>
+<td style="text-align: center;">0.5521</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Triangulación Binaria</td>
+<td style="text-align: center;">0.5494</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SOI Binaria</td>
+<td style="text-align: center;">0.5369</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Adyacencia Rook Ponderada</td>
+<td style="text-align: center;">0.5237</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Adyacencia Rook Binaria</td>
+<td style="text-align: center;">0.5194</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Adyacencia Queen Binaria</td>
+<td style="text-align: center;">0.5155</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Adyacencia Queen Ponderada</td>
+<td style="text-align: center;">0.5002</td>
+<td style="text-align: center;">0.0000000</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>A efectos prácticos, y con el fin de mantener una estructura uniforme a lo largo del trabajo, se optó por utilizar una única matriz de vecindad por modelo (es decir, sin cambiar la matriz para variables independientes), priorizando la simplicidad interpretativa. En consecuencia, se seleccionaron cuatro matrices con buenos niveles de autocorrelación, que permiten comparar distintos enfoques vecinales. Las matrices elegidas fueron:</p>
+<ul>
+<li><p>KNN 2 Ponderada</p></li>
+<li><p>Relativa Binaria</p></li>
+<li><p>KNN 4 Ponderada</p></li>
+<li><p>KNN 1 Ponderada</p></li>
+</ul>
+<p>Estas matrices representan distintas formas de conceptualizar el espacio: desde la proximidad estricta (KNN 1) hasta redes más densas (KNN 4), y permiten contrastar cómo se comportan los modelos bajo diferentes estructuras espaciales.</p>
+<p>Con el fin de ilustrar gráficamente las estructuras espaciales utilizadas en el modelado, se construyeron mapas para cada una de las cuatro matrices de vecindad seleccionadas: KNN 2 Ponderada, KNN 4 Ponderada, Relativa Binaria y KNN 1 Ponderada. En cada uno de estos mapas se representa la red de conexiones espaciales sobre el plano de los barrios de Columbus, mostrando de forma clara la densidad y distribución de las relaciones entre unidades vecinas.</p>
+<p>Estas visualizaciones permiten comparar visualmente la intensidad de las conexiones entre barrios: por ejemplo, la matriz KNN 4 Ponderada genera una red más densa al incluir más vecinos por unidad, mientras que KNN 1 Ponderada presenta una estructura más dispersa y localizada. La Relativa Binaria, por otro lado, incorpora conexiones más variadas al basarse en relaciones geométricas entre puntos, proporcionando una topología distinta a las construidas por cercanía estricta.</p>
+<p>Estas representaciones sirven como apoyo visual para comprender cómo se estructura la dependencia espacial en los modelos propuestos.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="dispersogramas-de-moran" class="level1">
+<h1>Dispersogramas de Moran</h1>
+<p>Se construyeron dispersogramas de Moran para las cuatro matrices de vecindad seleccionadas, usando como variable de interés la tasa de delitos por mil hogares. En el eje X se representa dicha tasa, y en el eje Y el valor espacialmente rezagado, lo que permite visualizar la dependencia espacial entre los barrios.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="índices-locales-de-getis-y-ord" class="level2">
+<h2 class="anchored" data-anchor-id="índices-locales-de-getis-y-ord">índices locales de Getis y Ord</h2>
+<p>En todos los casos se observa una clara tendencia lineal creciente, lo que indica una autocorrelación espacial positiva: es decir, barrios con altas tasas de delitos tienden a estar rodeados de otros barrios con tasas igualmente altas, y lo mismo ocurre con las tasas bajas. Esto confirma que el fenómeno delictivo no está distribuido aleatoriamente en el espacio, sino que presenta agrupamientos.</p>
+<p>A continuación se se procedió al cálculo del estadístico local G de Getis y Ord para cada una de las matrices de interés. Este estadístico permite identificar conglomerados espaciales de altos o bajos valores (hotspots y coldspots), proporcionando así información detallada sobre la distribución local del fenómeno. Además, mediante 1000 permutaciones Monte Carlo se obtuvieron valores-p empíricos, permitiendo evaluar la significancia estadística de los grupos detectados. Los resultados se visualizan en mapas donde se destacan zonas con concentraciones locales altas o bajas de criminalidad.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>En general, los resultados muestran una clara presencia de agrupamientos locales de altos valores de criminalidad (hotspots), particularmente en los vecindarios ubicados en el centro de la ciudad, donde el estadístico G toma valores positivos entre 1 y 2, e incluso mayores bajo ciertas configuraciones.</p>
+<p>Este patrón se observa con mayor claridad cuando se utiliza la matriz KNN con 4 vecinos ponderados, donde los vecindarios centrales presentan tonalidades rojas más intensas, indicando un estadístico local G más alto. Esto sugiere no solo una alta criminalidad en esos barrios, sino también que están rodeados por otros con niveles igualmente altos, lo que refuerza la presencia de un núcleo crítico. En contraste, los vecindarios situados al sur y al nororiente muestran valores negativos del estadístico G (entre -2 y -1), evidenciando conglomerados de baja criminalidad o “coldspots”.</p>
+<p>En el caso de la matriz KNN con 1 vecino ponderado, los valores del estadístico tienden a dispersarse más, y aunque los patrones generales se mantienen, la señal de agrupamiento es menos definida debido al número reducido de vecinos considerados. Por su parte, la matriz relativa binaria también refleja el patrón central de concentración delictiva, aunque con una intensidad menor tanto en los hotspots como en los coldspots, mostrando valores G generalmente entre 1 y 2 en el centro, y entre -2 y -1 en las zonas periféricas.</p>
+<p>En conjunto, todos los métodos detectan una estructura espacial común, con mayor o menor intensidad: una zona central con alta criminalidad agrupada y áreas periféricas con niveles más bajos. Las diferencias entre los mapas permiten contrastar cómo la definición del vecindario afecta la detección y delimitación de estos patrones espaciales.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Los mapas de p-valores del estadístico Local G muestran que la mayoría de vecindarios no presentan evidencia de autocorrelación espacial local (p &gt; 0.2). Este patrón es aún más claro en zonas periféricas, donde los valores p tienden a ser mayores. No obstante, un grupo de vecindarios en el centro muestra p-valores consistentemente bajos, especialmente bajo la matriz KNN4, lo que indica una posible concentración espacial significativa. A medida que se amplía el número de vecinos (de KNN1 a KNN4), este patrón central se vuelve más evidente, reflejando una estructura espacial más marcada en esa zona.</p>
+</section>
+</section>
+<section id="modelos-de-regresión-estimados" class="level1">
+<h1>MODELOS DE REGRESIÓN ESTIMADOS</h1>
+<p>Se estimaron ocho modelos de regresión espacial con las covariables anteriormente mencionadas para cada una de las matrices de pesos espaciales consideradas: OLS, SLX, SAR, SEM, SDEM, SDM, Manski y SARAR. Cada uno representa diferentes formas de incorporar la dependencia espacial, como efectos en la variable dependiente (SAR), en los errores (SEM), o en las covariables (SLX, SDM). Para cada matriz, se seleccionó el modelo con menor AIC como el más adecuado. En la mayoría de los casos, el modelo SEM (Spatial Error Model) obtuvo el menor AIC, a excepción de la configuración con la matriz KNN4 donde el modelo con menor AIC resultó ser el SAR, siendo estos los 4 modelos seleccionados para su posterior análisis.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-striped table-hover caption-top table-sm small" data-quarto-postprocess="true">
+<caption>Matriz: KNN 2 Ponderada</caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">Modelo</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">AIC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">SEM</td>
+<td style="text-align: center;">366.83</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SAR</td>
+<td style="text-align: center;">367.43</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">SARAR</td>
+<td style="text-align: center;">368.63</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">OLS</td>
+<td style="text-align: center;">369.25</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">SDM</td>
+<td style="text-align: center;">371.95</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SLX</td>
+<td style="text-align: center;">372.76</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">SDEM</td>
+<td style="text-align: center;">373.24</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">Manski</td>
+<td style="text-align: center;">373.94</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+<div class="cell-output-display">
+<table class="table table-striped table-hover caption-top table-sm small" data-quarto-postprocess="true">
+<caption>Matriz: Relativa Binaria</caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">Modelo</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">AIC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">SEM</td>
+<td style="text-align: center;">366.19</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SARAR</td>
+<td style="text-align: center;">368.10</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">SAR</td>
+<td style="text-align: center;">368.52</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">OLS</td>
+<td style="text-align: center;">369.25</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">SDM</td>
+<td style="text-align: center;">373.77</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SDEM</td>
+<td style="text-align: center;">374.42</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">Manski</td>
+<td style="text-align: center;">375.64</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SLX</td>
+<td style="text-align: center;">375.78</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+<div class="cell-output-display">
+<table class="table table-striped table-hover caption-top table-sm small" data-quarto-postprocess="true">
+<caption>Matriz: KNN 4 Ponderada</caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">Modelo</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">AIC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">SAR</td>
+<td style="text-align: center;">367.90</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SEM</td>
+<td style="text-align: center;">368.27</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">OLS</td>
+<td style="text-align: center;">369.25</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SARAR</td>
+<td style="text-align: center;">369.47</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">SDM</td>
+<td style="text-align: center;">376.59</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SLX</td>
+<td style="text-align: center;">376.79</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">SDEM</td>
+<td style="text-align: center;">377.33</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">Manski</td>
+<td style="text-align: center;">378.58</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+<div class="cell-output-display">
+<table class="table table-striped table-hover caption-top table-sm small" data-quarto-postprocess="true">
+<caption>Matriz: KNN 1 Ponderada</caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">Modelo</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">AIC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">SEM</td>
+<td style="text-align: center;">366.27</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SDEM</td>
+<td style="text-align: center;">367.41</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">SDM</td>
+<td style="text-align: center;">367.62</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SAR</td>
+<td style="text-align: center;">367.82</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">SARAR</td>
+<td style="text-align: center;">368.26</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">Manski</td>
+<td style="text-align: center;">368.65</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">OLS</td>
+<td style="text-align: center;">369.25</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SLX</td>
+<td style="text-align: center;">372.13</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+<section id="selección-de-variables" class="level2">
+<h2 class="anchored" data-anchor-id="selección-de-variables">SELECCIÓN DE VARIABLES</h2>
+<p>Tras seleccionar los modelos más adecuados según el AIC para cada configuración de matriz de pesos espaciales, se procedió a realizar un proceso de selección de variables mediante una estrategia tipo forward. Inicialmente, se incluyeron todas las covariables del modelo base, y luego se fueron eliminando aquellas con valores-p mayores a 0.05, hasta conservar solo aquellas con evidencia estadística suficiente.</p>
+<p>Este procedimiento se aplicó de forma independiente a cada combinación modelo-matriz, resultando en modelos más parsimoniosos y con variables significativas para cada caso.</p>
+<p>A continuación se resumen los modelos finales seleccionados, junto con su respectiva matriz espacial y las variables explicativas que permanecieron tras la depuración:</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Resumen de modelos espaciales y sus variables seleccionadas</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Modelo</th>
+<th style="text-align: center;">Matriz</th>
+<th style="text-align: center;">Variables_Seleccionadas</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">SEM (Modelo 1)</td>
+<td style="text-align: center;">KNN4 ponderada</td>
+<td style="text-align: center;">HOVAL, INC, CP</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SEM (Modelo 2)</td>
+<td style="text-align: center;">Relativa binaria</td>
+<td style="text-align: center;">HOVAL, INC, PLUMB, CP</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">SAR (Modelo 3)</td>
+<td style="text-align: center;">KNN2 ponderada</td>
+<td style="text-align: center;">HOVAL, INC, CP</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SEM (Modelo 4)</td>
+<td style="text-align: center;">KNN1 ponderada</td>
+<td style="text-align: center;">HOVAL, INC, PLUMB, CP</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Una vez definidos los cuatro modelos espaciales más apropiados según los criterios de AIC y selección de variables significativas, se procedió a evaluar la adecuación del ajuste en términos de sus residuos. Para ello, se aplicaron dos pruebas clave:</p>
+<ul>
+<li><p>Índice de Moran sobre los residuos: para verificar la presencia de autocorrelación espacial no explicada por los modelos.</p></li>
+<li><p>Prueba de Breusch-Pagan espacial: para evaluar la hipótesis nula de homocedasticidad (es decir, varianza constante de los errores).</p></li>
+</ul>
+<p>Los resultados del Índice de Moran muestran valores bajos y no significativos para todos los modelos (todos los p-valores &gt; 0.16), lo que indica que los residuos no presentan autocorrelación espacial significativa. Esto sugiere que los modelos fueron capaces de capturar adecuadamente la estructura espacial del fenómeno, es decir, extrajeron exitosamente el componente espacial del crimen.</p>
+<p>No obstante, la prueba de Breusch-Pagan muestra que, salvo en el Modelo 1 (SEM con KNN4 ponderada) que es marginalmente no significativo (p ≈ 0.067), los demás modelos presentan evidencia significativa de heterocedasticidad en los residuos. Esto implica que aún persiste cierta inestabilidad estructural en la relación entre las variables independientes y la tasa de crimen, probablemente debido a fenómenos de heterogeneidad espacial no capturada.</p>
+<p>En términos prácticos, estos resultados sugieren que aunque se logró remover la autocorrelación espacial en los errores, existen zonas dentro del área de estudio donde el comportamiento del crimen es más variable o más sensible a ciertas condiciones locales. Por tanto, se plantea como siguiente paso trabajar con filtros espaciales para absorber esta heterogeneidad residual.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Diagnóstico de residuos espaciales</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Modelo</th>
+<th style="text-align: center;">Matriz</th>
+<th style="text-align: center;">Moran_I</th>
+<th style="text-align: center;">Valorp</th>
+<th style="text-align: center;">BP</th>
+<th style="text-align: center;">valorp</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">SEM (Modelo 1)</td>
+<td style="text-align: center;">KNN4 ponderada</td>
+<td style="text-align: center;">0.0320</td>
+<td style="text-align: center;">0.3406</td>
+<td style="text-align: center;">7.15</td>
+<td style="text-align: center;">0.0672</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SEM (Modelo 2)</td>
+<td style="text-align: center;">Relativa binaria</td>
+<td style="text-align: center;">0.0369</td>
+<td style="text-align: center;">0.3210</td>
+<td style="text-align: center;">15.39</td>
+<td style="text-align: center;">0.0039</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">SAR (Modelo 3)</td>
+<td style="text-align: center;">KNN2 ponderada</td>
+<td style="text-align: center;">0.0640</td>
+<td style="text-align: center;">0.1689</td>
+<td style="text-align: center;">9.53</td>
+<td style="text-align: center;">0.0231</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SEM (Modelo 4)</td>
+<td style="text-align: center;">KNN1 ponderada</td>
+<td style="text-align: center;">0.0303</td>
+<td style="text-align: center;">0.3837</td>
+<td style="text-align: center;">14.81</td>
+<td style="text-align: center;">0.0051</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<section id="aplicación-de-filtros-espaciales" class="level3">
+<h3 class="anchored" data-anchor-id="aplicación-de-filtros-espaciales">Aplicación de filtros espaciales</h3>
+<p>Para corregir esta inestabilidad estructural en los residuos, se aplicaron filtros espaciales mediante la función ME() del paquete spatialreg.</p>
+<p>Estos filtros se basan en vectores propios asociados a una versión transformada de la matriz de pesos espaciales. Dichos vectores representan estructuras espaciales no capturadas por el modelo, es decir, patrones latentes de autocorrelación que podrían estar explicando parte del comportamiento espacial del fenómeno (en este caso, el crimen).</p>
+<p>La manera en la que se procedió fue la siguiente:</p>
+<ul>
+<li><p>Para cada uno de los modelos, se calculó un vector propio representativo, que maximiza la autocorrelación espacial de los residuos no explicados.</p></li>
+<li><p>Ese vector propio se agregó como una nueva covariable explicativa en el modelo.</p></li>
+<li><p>Posteriormente, se volvió a ajustar el modelo espacial correspondiente (SEM o SAR), esta vez incluyendo dicho filtro.</p></li>
+</ul>
+<p>Esto permitió generar una nueva versión de cada modelo, ahora considerando esa estructura espacial adicional.</p>
+<p>Después de incorporar los filtros, se repitieron las pruebas de Moran y Breusch-Pagan sobre los nuevos residuos. Los resultados se resumen a continuación:</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Resumen de modelos espaciales con filtros</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Modelo</th>
+<th style="text-align: center;">Matriz</th>
+<th style="text-align: center;">Moran_I</th>
+<th style="text-align: center;">Valorp</th>
+<th style="text-align: center;">BP</th>
+<th style="text-align: center;">valorp</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Modelo 1 + filtro</td>
+<td style="text-align: center;">KNN2 ponderada</td>
+<td style="text-align: center;">0.0303</td>
+<td style="text-align: center;">0.3456</td>
+<td style="text-align: center;">7.29</td>
+<td style="text-align: center;">0.1213</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Modelo 2 + filtro</td>
+<td style="text-align: center;">Relativa binaria</td>
+<td style="text-align: center;">0.0162</td>
+<td style="text-align: center;">0.3835</td>
+<td style="text-align: center;">13.64</td>
+<td style="text-align: center;">0.0181</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Modelo 3 + filtro</td>
+<td style="text-align: center;">KNN4 ponderada</td>
+<td style="text-align: center;">0.0101</td>
+<td style="text-align: center;">0.3632</td>
+<td style="text-align: center;">12.39</td>
+<td style="text-align: center;">0.0147</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Modelo 4 + filtro</td>
+<td style="text-align: center;">KNN1 ponderada</td>
+<td style="text-align: center;">0.0303</td>
+<td style="text-align: center;">0.3837</td>
+<td style="text-align: center;">14.81</td>
+<td style="text-align: center;">0.0051</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Los valores del índice de Moran se redujeron aún más y siguen siendo no significativos, confirmando que la autocorrelación espacial fue bien controlada.</p>
+<p>Los valores de Breusch-Pagan muestran una mejora sustancial en el Modelo 1, cuyo p-valor ahora es no significativo (p ≈ 0.12), lo que sugiere que el filtro ayudó a estabilizar la varianza de los residuos.</p>
+<p>Sin embargo, en los modelos 2, 3 y 4 la heterocedasticidad persiste, aunque con una ligera mejora en los p-valores. Esto indica que la heterogeneidad espacial del crimen no se elimina completamente con un solo eigenvector, pero se logra reducir parcialmente.</p>
+</section>
+</section>
+</section>
+<section id="análisis-de-cluster" class="level1">
+<h1>ANÁLISIS DE CLUSTER</h1>
+<p>Finalmente, se aplicó un análisis de agrupamiento por cuantiles (clustering) sobre los valores ajustados de cada modelo, con el objetivo de visualizar y comparar la distribución espacial de la tasa de criminalidad estimada en los diferentes escenarios.</p>
+<p>Para ello:</p>
+<p>Se dividieron los valores ajustados de cada modelo en 5 niveles (quintiles).</p>
+<p>Se representaron mediante mapas coropléticos donde cada color indica un nivel distinto de criminalidad estimada, del rojo más oscuro (mayor tasa) al más claro (menor).</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>En todos los modelos, los niveles más altos de criminalidad estimada se concentran en el centro del mapa, es decir, en la zona central de Columbus.</p>
+<p>Particularmente, el modelo 1, que mostró el mejor desempeño estadístico tras aplicar filtros (sin autocorrelación ni heterocedasticidad), logra delimitar de forma más precisa el núcleo de mayor criminalidad.</p>
+<p>En los modelos 2 y 4, aparece un vecindario adicional con alta criminalidad, extendiendo levemente la zona central con tasa elevada.</p>
+<p>Los niveles intermedios (clusters 2 y 3) tienden a estar conformados por vecindarios adyacentes al centro, mientras que los niveles más bajos (clusters 4 y 5) se ubican en la periferia: norte, sur, occidente y nororiente de la ciudad.</p>
+<p>Este patrón sugiere una disminución gradual de la criminalidad estimada conforme se aleja del centro urbano, reflejando una clara estructura espacial del fenómeno.</p>
+<p>El modelo final propuesto es el modelo 1, que corresponde a un modelo de error espacial (SEM) ajustado utilizando la matriz de pesos KNN2 ponderada. Este modelo fue seleccionado porque dicha matriz presentó el mayor índice de Moran en el análisis exploratorio y porque fue el único que no presentó evidencia de heterocedasticidad según la prueba de Breusch-Pagan (valor-p alto), lo que sugiere que los residuos tienen varianza constante.</p>
+<p>A continuación, se presenta el resumen final del modelo:</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Resumen del modelo SAR (Error spatial)</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Variable</th>
+<th style="text-align: center;">Coeficientes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Constante</td>
+<td style="text-align: center;">46.8100</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">HOVAL</td>
+<td style="text-align: center;">-0.2130</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">INC</td>
+<td style="text-align: center;">-0.7330</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">CP</td>
+<td style="text-align: center;">14.3700</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Lambda</td>
+<td style="text-align: center;">0.2710</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Test de Wald</td>
+<td style="text-align: center;">3.7546</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Log-verosimilitud</td>
+<td style="text-align: center;">-175.2000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">AIC</td>
+<td style="text-align: center;">364.4100</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Breusch-Pagan</td>
+<td style="text-align: center;">7.2900</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Los resultados indican que barrios con mayor valor promedio de vivienda (HOVAL) y mayores ingresos (INC) tienden a presentar menos criminalidad, como lo reflejan sus coeficientes negativos. En contraste, vivir en el núcleo urbano (CP) se asocia con un aumento significativo del crimen. El parámetro espacial (Lambda = 0.271) sugiere una dependencia espacial moderada en los delitos: los valores del crimen en un barrio tienden a estar relacionados con los de sus vecinos. El modelo presenta un ajuste aceptable (AIC = 364.41) y evidencia heterocedasticidad según el test de Breusch-Pagan (7.29).</p>
+<section id="graficos-de-calidad-del-modelo" class="level2">
+<h2 class="anchored" data-anchor-id="graficos-de-calidad-del-modelo">GRAFICOS DE CALIDAD DEL MODELO</h2>
+<p>Se evaluó la calidad del modelo SEM mediante tres gráficos: (1) el QQ plot mostró que los residuos siguen aproximadamente una distribución normal, alineándose con la línea de referencia; (2) el gráfico de predichos vs.&nbsp;observados indicó buen ajuste, con puntos cercanos a la línea identidad; y (3) el gráfico de residuos vs.&nbsp;valores ajustados evidenció dispersión aleatoria alrededor de cero, sin patrones sistemáticos. Estos resultados sugieren un buen comportamiento del modelo.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-24-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="columbus_files/figure-html/unnamed-chunk-24-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="conclusión" class="level1">
+<h1>CONCLUSIÓN</h1>
+<p>El análisis espacial de la tasa de criminalidad en Columbus en 1980 permitió identificar patrones claros y variables clave asociadas al crimen, como el valor promedio de la vivienda, los ingresos y la localización urbana. El modelo SEM con matriz KNN2 ponderada ofreció el mejor desempeño, capturando de forma más precisa la realidad observada. Estos resultados muestran que la criminalidad no se distribuye al azar, sino que responde a condiciones estructurales del entorno urbano. Entender estos factores permite no solo mejorar el análisis estadístico, sino también orientar políticas públicas más justas y efectivas, focalizando esfuerzos en zonas con mayores carencias y diseñando intervenciones más alineadas con las dinámicas territoriales reales.</p>
 </section>
 
 </main>

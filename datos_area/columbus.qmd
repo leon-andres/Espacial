@@ -11,23 +11,1015 @@ toc: true
 toc-depth: 2
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
-
 ```{r}
-1 + 1
+#| echo: false
+#| message: false
+#| warning: false
+#| results: false
+
+
+lista_librerías <- c(
+  "dbscan", "dplyr", "ggplot2", "knitr", "ggcorrplot",
+  "sf", "spdep", "tibble", "tmap", "tidyverse", "corrplot", "spatialreg", "kableExtra", "classInt", "RColorBrewer", "tmap"
+)
+
+
+no_installs <- lista_librerías[!lista_librerías %in% installed.packages()]
+
+if(length(no_installs) > 0) {
+  cat("Los siguientes paquetes no están instalados :\n")
+  cat(no_installs, sep = "\n")
+  install.packages(no_installs)
+} else {
+  cat("Todos los paquetes están instalados. \n")
+}
+
+sapply(lista_librerías, require, character = TRUE)
 ```
 
-You can add options to executable code like this
+### **Planteamiento del problema**
+
+La criminalidad urbana representa un fenómeno complejo y multicausal que afecta de forma directa la calidad de vida de los ciudadanos. Su análisis y comprensión requieren enfoques que consideren no solo las características socioeconómicas de los territorios, sino también sus interrelaciones espaciales. En este contexto, las técnicas de análisis espacial permiten identificar patrones de dependencia y heterogeneidad que no pueden captarse mediante métodos estadísticos tradicionales.
+
+El presente estudio tiene como objetivo explorar y modelar espacialmente la distribución de los delitos (específicamente, robos residenciales y de vehículos) en los barrios de la ciudad de Columbus, Ohio, en el año 1980, a partir de una base de datos ampliamente utilizada en estudios geoespaciales. Se parte del supuesto de que los niveles de criminalidad en un barrio pueden estar influidos no solo por sus propias condiciones socioeconómicas, sino también por las de sus barrios vecinos. Para ello, se integran herramientas de estadística exploratoria espacial, construcción y comparación de matrices de ponderación espacial, índices de autocorrelación global y local, modelos de regresión espacial y análisis de clúster.
+
+### **Objetivos**
+
+**Objetivo general:**
+
+Analizar la distribución espacial de los niveles de criminalidad en los barrios de Columbus (1980) mediante técnicas de estadística espacial, modelos de regresión y análisis de clúster, a fin de identificar patrones territoriales, dependencias espaciales y factores socioeconómicos asociados.
+
+**Objetivos específicos:**
+
+1.  Realizar una estadística exploratoria espacial de los datos, mediante herramientas como boxmaps y visualización de conexiones espaciales, para distintas matrices de vecindad.
+
+2.  Calcular y comparar índices de autocorrelación espacial global y local.
+
+3.  Estimar modelos de regresión paramétricos espaciales que expliquen los niveles de criminalidad a partir de variables socioeconómicas y espaciales, evaluando supuestos, calidad del ajuste e interpretando los resultados.
+
+4.  Aplicar técnicas de análisis de clúster espacial y comparar resultados según distintas matrices de vecindad ,, con el fin de caracterizar zonas homogéneas en cuanto a los niveles de criminalidad.
+
+### **Descripción de variables**
+
+En este estudio se utiliza la base de datos “Columbus Crime 1980”, que contiene información para 49 barrios de la ciudad de Columbus, Ohio. La variable de interés es la tasa de criminalidad, mientras que las variables explicativas o covariables corresponden a características socioeconómicas, de infraestructura y localización. A continuación se describen las variables utilizadas:
+
+-   **CRIME**: Número de delitos residenciales y robos de vehículos por cada 1.000 hogares. Es la variable dependiente del estudio.
+
+-   **HOVAL** : Valor promedio de la vivienda en miles de dólares. Se interpreta como una medida del nivel económico del barrio.
+
+-   **INC** : Ingreso promedio de los hogares en miles de dólares. También refleja el nivel socioeconómico de los residentes.
+
+-   **OPEN** : Área de espacio abierto en el barrio. Puede relacionarse con planificación urbana o disponibilidad de espacios públicos.
+
+-   **PLUMB** : Porcentaje de viviendas sin acceso a servicios de plomería. Indica condiciones deficientes de infraestructura.
+
+-   **DISCBD** : Distancia al centro de negocios de la ciudad. Se considera una variable de localización geográfica con posible relación con el acceso a servicios y oportunidades.
+
+-   **CP** : Variable binaria que indica si el barrio pertenece al núcleo urbano (1) o a la periferia (0), útil para capturar diferencias estructurales en la distribución de la criminalidad.
+
+Estas variables permitirán evaluar no solo los factores asociados a la criminalidad en cada barrio, sino también los posibles efectos espaciales que influyen en su distribución geográfica.
+
+A continuación, se presenta el mapa de Columbus con su división por vecindarios y sus respectivos centroides
 
 ```{r}
 #| echo: false
-2 * 2
+#| message: false
+#| warning: false
+setwd("C:\\Users\\User\\Documents\\GitHub\\espacial-2025-1s\\Espacial\\datos_area\\data")
+# Lectura de los datos ####
+columbus <- read_sf("columbus.shp")
+columbus <- st_transform(columbus, crs = 32617)
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+```{r, fig.width=10, fig.height=10}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Matriz de vecindades ####
+
+# Calcular los centroides
+centroides <- st_centroid(columbus)
+
+# Extraer coordenadas de los centroides
+xy0 <- st_coordinates(centroides)
+
+# Graficar el mapa
+plot(st_geometry(columbus), border = "green", axes = T, col = "grey")
+title(main = "Vecindarios de Columbus")
+plot(st_geometry(centroides), add = TRUE, pch = 19, cex = 0.7, col = "blue")
+grid() # Agregar grilla
+
+```
+
+### **Análisis exploratorio espacial de los datos**
+
+Como primer acercamiento a los datos, se realizaron mapas temáticos para observar la distribución espacial tanto de la variable dependiente (tasa de criminalidad) como de las covariables seleccionadas. Esta exploración permite identificar patrones geográficos iniciales que podrían ser relevantes en el análisis posterior.
+
+```{r, fig.width=10, fig.height=10}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Activar modo de visualización estática
+tmap_mode("plot")
+
+# Mapa temático de crimen
+tm_shape(columbus) +
+  tm_fill("CRIME", 
+          palette = "Reds", 
+          style = "quantile", 
+          title = "Delitos por 1000 hogares") +
+  tm_borders() +
+  tm_layout(main.title = "Crimen residencial y automotor en Columbus, Ohio (1980)", 
+            legend.outside = TRUE)
+
+
+```
+
+En el primer mapa, se observa claramente un patrón espacial en la distribución de la criminalidad. Los vecindarios ubicados en el centro de la ciudad de Columbus presentan las tasas más altas de delitos por cada 1.000 hogares, con valores que oscilan entre 39,03 y 68,89. Por el contrario, las zonas periféricas muestran tasas de criminalidad considerablemente más bajas. Este gradiente centro-periferia sugiere la existencia de dependencia espacial y posibles factores estructurales que contribuyen a la concentración de delitos en áreas céntricas.
+
+```{r, fig.width=10, fig.height=10}
+#| echo: false
+#| message: false
+#| warning: false
+# Activar modo de visualización estática
+tmap_mode("plot")
+
+# Lista de variables y sus títulos en español
+variables_mapa <- c("HOVAL", "INC", "OPEN", "PLUMB", "DISCBD", "CP")
+titulos_mapa <- c(
+  "Valor de la vivienda (en miles de USD)",
+  "Ingreso del hogar (en miles de USD)",
+  "Espacio abierto (área)",
+  "Porcentaje de viviendas sin plomería",
+  "Distancia al centro urbano (CBD)",
+  "Indicador centro-periferia (1 = centro)"
+)
+
+# Crear los mapas con títulos personalizados
+mapas_temat <- lapply(seq_along(variables_mapa), function(i) {
+  tm_shape(columbus) +
+    tm_fill(variables_mapa[i], 
+            palette = "Reds", 
+            style = "quantile", 
+            title = titulos_mapa[i]) +
+    tm_borders() +
+    tm_layout(main.title = titulos_mapa[i],
+              legend.outside = TRUE)
+})
+
+# Mostrar todos los mapas en un panel
+tmap_arrange(mapas_temat, ncol = 2)
+
+
+
+```
+
+Al observar los mapas de las covariables, se identifican varios patrones de interés:
+
+-   El valor de la vivienda y el ingreso del hogar muestran valores más bajos en las zonas céntricas y más altos en la periferia, lo que sugiere una posible relación inversa con la criminalidad.
+
+-   El porcentaje de viviendas sin plomería se concentra en los vecindarios del centro, coincidiendo con las zonas de mayor criminalidad.
+
+-   El área de espacio abierto no presenta un patrón espacial definido.
+
+-   La distancia al centro urbano y el indicador centro-periferia muestran relaciones esperadas por construcción.
+
+En conjunto, los mapas revelan que los vecindarios centrales tienden a concentrar condiciones socioeconómicas más precarias, lo que puede estar asociado a una mayor incidencia delictiva.
+
+Además de los mapas, se calculó la matriz de correlación entre las variables de interés. Los resultados confirman los patrones observados en la exploración espacial. La variable CRIME muestra correlaciones negativas moderadas a fuertes con variables socioeconómicas como HOVAL (−0.57), INC (−0.70) y DISCBD (−0.74), indicando que mayores niveles de ingreso, valor de vivienda o distancia al centro urbano se asocian con menores niveles de criminalidad. Por el contrario, muestra correlaciones positivas con PLUMB (0.43) y especialmente con CP (0.75), lo que respalda la idea de que los barrios céntricos y con menor infraestructura básica presentan mayores tasas delictivas. En general, los coeficientes refuerzan la existencia de relaciones estructurales entre las variables socioeconómicas, de localización y la criminalidad.
+
+```{r, fig.width=10, fig.height=5}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Seleccionar variables relevantes
+vars_cor <- columbus %>% 
+  st_drop_geometry() %>% 
+  select(CRIME, HOVAL, INC, OPEN, PLUMB, DISCBD, CP)
+
+# Calcular la matriz de correlación
+matriz_cor <- cor(vars_cor, use = "complete.obs")
+
+# Graficar el mapa de calor con los valores encima
+ggcorrplot(matriz_cor,
+           method = "square",       # forma de los cuadros
+           type = "lower",          # solo la parte inferior
+           lab = TRUE,              # mostrar los coeficientes
+           lab_size = 3,            # tamaño de texto
+           colors = c("blue", "white", "red"),  # paleta
+           title = "Matriz de correlación",
+           legend.title = "Correlación",
+           show.legend = TRUE,
+           tl.cex = 10)             # tamaño texto ejes
+
+```
+
+# MATRICES DE VECINDADES
+
+Con el objetivo de explorar la estructura espacial del fenómeno delictivo en Columbus (1980), se definieron diversas matrices de pesos espaciales que describen la relación de vecindad entre los barrios. Estas matrices fueron construidas a partir de distintos criterios: contigüidad (Rook y Queen), grafos geométricos (Triangulación, SOI, Gabriel, Relativa) y proximidad (k vecinos más cercanos, con k = 1, 2, 3, 4), tanto en versiones binarias como ponderadas.
+
+Para cada una de estas 20 matrices, se calculó el índice de Moran Global para la variable CRIME, junto con su valor-p asociado, con el fin de evaluar la presencia de autocorrelación espacial significativa. La siguiente tabla muestra los resultados obtenidos, ordenados de mayor a menor según el valor del índice de Moran. Se observa que todos los valores son positivos y altamente significativos, lo cual confirma la existencia de una fuerte dependencia espacial en los niveles de criminalidad registrados en los barrios de la ciudad.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+############################################
+# 2. Definir matrices de vecinos
+############################################
+# Matrices de pesos espaciales
+
+# Vecinos físicos (adyacencia de polígonos)
+adyacencia_rook_binaria     <- nb2listw(poly2nb(columbus, queen = FALSE), style = "B", zero.policy = TRUE)
+adyacencia_rook_ponderada   <- nb2listw(poly2nb(columbus, queen = FALSE), style = "W", zero.policy = TRUE)
+
+adyacencia_queen_binaria    <- nb2listw(poly2nb(columbus, queen = TRUE),  style = "B", zero.policy = TRUE)
+adyacencia_queen_ponderada  <- nb2listw(poly2nb(columbus, queen = TRUE),  style = "W", zero.policy = TRUE)
+
+# Vecinos por grafos
+triangulacion_binaria       <- nb2listw(tri2nb(xy0), style = "B", zero.policy = TRUE)
+triangulacion_ponderada     <- nb2listw(tri2nb(xy0), style = "W", zero.policy = TRUE)
+
+soi_binaria                 <- nb2listw(graph2nb(soi.graph(tri2nb(xy0), xy0)), style = "B", zero.policy = TRUE)
+soi_ponderada               <- nb2listw(graph2nb(soi.graph(tri2nb(xy0), xy0)), style = "W", zero.policy = TRUE)
+
+relativa_binaria           <- nb2listw(graph2nb(relativeneigh(xy0), sym = TRUE), style = "B", zero.policy = TRUE)
+relativa_ponderada         <- nb2listw(graph2nb(relativeneigh(xy0), sym = TRUE), style = "W", zero.policy = TRUE)
+
+gabriel_binaria            <- nb2listw(graph2nb(gabrielneigh(xy0), sym = TRUE), style = "B", zero.policy = TRUE)
+gabriel_ponderada          <- nb2listw(graph2nb(gabrielneigh(xy0), sym = TRUE), style = "W", zero.policy = TRUE)
+
+# Vecinos por distancia (k vecinos más cercanos)
+knn1_binaria               <- nb2listw(knn2nb(knearneigh(xy0, k = 1)), style = "B", zero.policy = TRUE)
+knn1_ponderada             <- nb2listw(knn2nb(knearneigh(xy0, k = 1)), style = "W", zero.policy = TRUE)
+
+knn2_binaria               <- nb2listw(knn2nb(knearneigh(xy0, k = 2)), style = "B", zero.policy = TRUE)
+knn2_ponderada             <- nb2listw(knn2nb(knearneigh(xy0, k = 2)), style = "W", zero.policy = TRUE)
+
+knn3_binaria               <- nb2listw(knn2nb(knearneigh(xy0, k = 3)), style = "B", zero.policy = TRUE)
+knn3_ponderada             <- nb2listw(knn2nb(knearneigh(xy0, k = 3)), style = "W", zero.policy = TRUE)
+
+knn4_binaria               <- nb2listw(knn2nb(knearneigh(xy0, k = 4)), style = "B", zero.policy = TRUE)
+knn4_ponderada             <- nb2listw(knn2nb(knearneigh(xy0, k = 4)), style = "W", zero.policy = TRUE)
+
+# Lista con todos los objetos
+mat <- list(
+  adyacencia_rook_binaria, adyacencia_rook_ponderada,
+  adyacencia_queen_binaria, adyacencia_queen_ponderada,
+  triangulacion_binaria, triangulacion_ponderada,
+  soi_binaria, soi_ponderada,
+  gabriel_binaria, gabriel_ponderada,
+  relativa_binaria, relativa_ponderada,
+  knn1_binaria, knn1_ponderada,
+  knn2_binaria, knn2_ponderada,
+  knn3_binaria, knn3_ponderada,
+  knn4_binaria, knn4_ponderada
+)
+
+
+# Nombres para las matrices de vecinos
+nombres_matrices <- c(
+  "Adyacencia Rook Binaria", "Adyacencia Rook Ponderada",
+  "Adyacencia Queen Binaria", "Adyacencia Queen Ponderada",
+  "Triangulación Binaria", "Triangulación Ponderada",
+  "SOI Binaria", "SOI Ponderada",
+  "Gabriel Binaria", "Gabriel Ponderada",
+  "Relativa Binaria", "Relativa Ponderada",
+  "KNN 1 Binaria", "KNN 1 Ponderada",
+  "KNN 2 Binaria", "KNN 2 Ponderada",
+  "KNN 3 Binaria", "KNN 3 Ponderada",
+  "KNN 4 Binaria", "KNN 4 Ponderada"
+)
+
+# Calcular índice de Moran y p-valores
+resultados <- lapply(mat, function(w) moran.test(columbus$CRIME, w, alternative = "two.sided"))
+valores_moran <- sapply(resultados, function(x) x$estimate[["Moran I statistic"]])
+pvalores <- sapply(resultados, function(x) x$p.value)
+
+# Crear la tabla
+tabla_resultados <- tibble(
+  Matriz = nombres_matrices,
+  `Índice de Moran` = round(valores_moran, 4),
+  `Valor p` = signif(pvalores, 4)
+) |>
+  arrange(desc(`Índice de Moran`))
+
+# Mostrar tabla bonita en consola
+kable(tabla_resultados, format = "simple", align = "lcc", caption = "Índices de Moran ordenados (de mayor a menor)")
+
+# Seleccionar 4 matrices específicas
+matrices_seleccionadas <- list(
+  KNN2_Ponderada    = knn2_ponderada,
+  Relativa_Binaria  = relativa_binaria,
+  KNN4_Ponderada    = knn4_ponderada,
+  KNN1_Ponderada    = knn1_ponderada
+)
+```
+
+A efectos prácticos, y con el fin de mantener una estructura uniforme a lo largo del trabajo, se optó por utilizar una única matriz de vecindad por modelo (es decir, sin cambiar la matriz para variables independientes), priorizando la simplicidad interpretativa. En consecuencia, se seleccionaron cuatro matrices con buenos niveles de autocorrelación, que permiten comparar distintos enfoques vecinales. Las matrices elegidas fueron:
+
+-   KNN 2 Ponderada
+
+-   Relativa Binaria
+
+-   KNN 4 Ponderada
+
+-   KNN 1 Ponderada
+
+Estas matrices representan distintas formas de conceptualizar el espacio: desde la proximidad estricta (KNN 1) hasta redes más densas (KNN 4), y permiten contrastar cómo se comportan los modelos bajo diferentes estructuras espaciales.
+
+Con el fin de ilustrar gráficamente las estructuras espaciales utilizadas en el modelado, se construyeron mapas para cada una de las cuatro matrices de vecindad seleccionadas: KNN 2 Ponderada, KNN 4 Ponderada, Relativa Binaria y KNN 1 Ponderada. En cada uno de estos mapas se representa la red de conexiones espaciales sobre el plano de los barrios de Columbus, mostrando de forma clara la densidad y distribución de las relaciones entre unidades vecinas.
+
+Estas visualizaciones permiten comparar visualmente la intensidad de las conexiones entre barrios: por ejemplo, la matriz KNN 4 Ponderada genera una red más densa al incluir más vecinos por unidad, mientras que KNN 1 Ponderada presenta una estructura más dispersa y localizada. La Relativa Binaria, por otro lado, incorpora conexiones más variadas al basarse en relaciones geométricas entre puntos, proporcionando una topología distinta a las construidas por cercanía estricta.
+
+Estas representaciones sirven como apoyo visual para comprender cómo se estructura la dependencia espacial en los modelos propuestos.
+
+```{r, fig.width=10, fig.height=10}
+#| echo: false
+#| message: false
+#| warning: false
+# Calcular índice de Moran y p-valores
+resultados_4mat <- lapply(matrices_seleccionadas, function(w) moran.test(columbus$CRIME, w, alternative = "two.sided"))
+valores_moran_4mat <- sapply(resultados_4mat, function(x) x$estimate[["Moran I statistic"]])
+pvalores_4mat <- sapply(resultados_4mat, function(x) x$p.value)
+
+graficar_vecindad <- function(nb_obj, nombre, xy, sf_poly, centroides) {
+  segmentos <- list()
+  for (i in 1:length(nb_obj)) {
+    if (length(nb_obj[[i]]) > 0) {
+      for (j in nb_obj[[i]]) {
+        coords_i <- xy[i, ]
+        coords_j <- xy[j, ]
+        segmentos <- append(segmentos, list(st_linestring(rbind(coords_i, coords_j))))
+      }
+    }
+  }
+  lineas_vecinas <- st_sfc(segmentos, crs = st_crs(sf_poly))
+  
+plot(st_geometry(sf_poly), col = "lightgrey", border = "darkgreen", main = nombre)
+  plot(lineas_vecinas, col = "red", lwd = 1.5, add = TRUE)
+  plot(st_geometry(centroides), add = TRUE, pch = 19, col = "blue", cex = 0.6)
+}
+
+layout(matrix(1:4, 2, 2))  
+par(mar = c(0.5, 0.5, 1, 0.5))   
+
+graficar_vecindad(knn2nb(knearneigh(xy0, k = 2)), "KNN 2 Ponderada", xy0, columbus, centroides)
+graficar_vecindad(graph2nb(relativeneigh(xy0), sym = TRUE), "Relativa Binaria", xy0, columbus, centroides)
+graficar_vecindad(knn2nb(knearneigh(xy0, k = 4)), "KNN 4 Ponderada", xy0, columbus, centroides)
+graficar_vecindad(knn2nb(knearneigh(xy0, k = 1)), "KNN 1 Ponderada", xy0, columbus, centroides)
+
+```
+
+# Dispersogramas de Moran
+
+Se construyeron dispersogramas de Moran para las cuatro matrices de vecindad seleccionadas, usando como variable de interés la tasa de delitos por mil hogares. En el eje X se representa dicha tasa, y en el eje Y el valor espacialmente rezagado, lo que permite visualizar la dependencia espacial entre los barrios.
+
+```{r, fig.width=10, fig.height=10}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Calcular los resultados de Moran
+resultados_4mat <- lapply(matrices_seleccionadas, function(w) {
+  moran.test(columbus$CRIME, w, alternative = "two.sided")
+})
+
+# Extraer estadísticos
+valores_moran_4mat <- sapply(resultados_4mat, function(x) x$estimate[["Moran I statistic"]])
+pvalores_4mat <- sapply(resultados_4mat, function(x) x$p.value)
+
+# Preparar layout para 2x2
+layout(matrix(1:4, 2, 2))
+par(mar = c(4, 4, 3, 1))  
+
+# Generar dispersogramas para cada matriz
+for (i in seq_along(matrices_seleccionadas)) {
+  
+  nombre <- names(matrices_seleccionadas)[i]
+  w      <- matrices_seleccionadas[[i]]
+  I_val  <- round(valores_moran_4mat[i], 4)
+  p_val  <- signif(pvalores_4mat[i], 4)
+  
+  moran.plot(columbus$CRIME,
+             w,
+             labels = as.character(columbus$NEIG),
+             xlab = "Delitos por 1000 hogares",
+             ylab = "Valor rezagado espacialmente",
+             main = paste("Dispersograma de Moran\n(", nombre, ")"),
+             pch = 16,
+             cex = 0.5,
+             las = 1)
+  
+  legend("bottomright",
+         legend = c(paste("I de Moran:", I_val),
+                    paste("Valor p:", p_val)),
+         cex = 0.9,
+         bg = "lightgreen")
+}
+
+
+
+```
+
+## índices locales de Getis y Ord
+
+En todos los casos se observa una clara tendencia lineal creciente, lo que indica una autocorrelación espacial positiva: es decir, barrios con altas tasas de delitos tienden a estar rodeados de otros barrios con tasas igualmente altas, y lo mismo ocurre con las tasas bajas. Esto confirma que el fenómeno delictivo no está distribuido aleatoriamente en el espacio, sino que presenta agrupamientos.
+
+A continuación se se procedió al cálculo del estadístico local G de Getis y Ord para cada una de las matrices de interés. Este estadístico permite identificar conglomerados espaciales de altos o bajos valores (hotspots y coldspots), proporcionando así información detallada sobre la distribución local del fenómeno. Además, mediante 1000 permutaciones Monte Carlo se obtuvieron valores-p empíricos, permitiendo evaluar la significancia estadística de los grupos detectados. Los resultados se visualizan en mapas donde se destacan zonas con concentraciones locales altas o bajas de criminalidad.
+
+```{r, fig.width=10, fig.height=10}
+#| echo: false
+#| message: false
+#| warning: false
+# Lista de matrices de pesos con nombres
+lista_listw <- list(
+  "KNN 2 Ponderada"    = knn2_ponderada,  
+  "KNN 4 Ponderada"    = knn4_ponderada,
+  "Relativa Binaria"   = relativa_binaria,
+  "KNN 1 Ponderada"    = knn1_ponderada
+)
+
+n_sim <- 1000  # Número de permutaciones Monte Carlo
+set.seed(123)  # reproducibilidad
+
+# Inicializar columnas vacías
+for (i in 1:4) {
+  columbus[[paste0("LocalG", i)]] <- NA
+  columbus[[paste0("PVG", i)]] <- NA
+}
+
+# Bucle para calcular Local G y p-valores
+for (i in 1:4) {
+  lw <- lista_listw[[i]]
+  localg_i <- localG(columbus$CRIME, lw)
+  columbus[[paste0("LocalG", i)]] <- localg_i
+  
+  simg_i <- matrix(0, nrow = n_sim, ncol = length(localg_i))
+  for (j in 1:n_sim) {
+    simg_i[j, ] <- localG(sample(columbus$CRIME), lw)
+  }
+  
+  pval_i <- (colSums(sweep(simg_i, 2, localg_i, `>=`)) + 1) / (n_sim + 1)
+  columbus[[paste0("PVG", i)]] <- pval_i
+}
+
+tmap_mode("plot")
+
+nombres_matrices <- names(lista_listw)
+
+# Mapas Local G
+mapas_localg <- lapply(1:4, function(i) {
+  tm_shape(columbus) +
+    tm_fill(paste0("LocalG", i),
+            palette = "-RdBu",
+            style = "pretty",
+            title = "Estadístico Local G") +
+    tm_borders(col = "gray40") +
+    tm_layout(
+      legend.outside = TRUE,
+      legend.outside.position = "right",
+      legend.title.size = 0.8,
+      legend.text.size = 0.7,
+      legend.width = 0.15,
+      legend.height = 0.35
+    ) +
+    tm_credits(nombres_matrices[i],
+               position = c("left", "top"),
+               size = 0.9,
+               just = "left")
+})
+
+tmap_arrange(
+  mapas_localg[[1]], mapas_localg[[2]],
+  mapas_localg[[3]], mapas_localg[[4]],
+  nrow = 2, ncol = 2
+)
+
+
+
+```
+
+En general, los resultados muestran una clara presencia de agrupamientos locales de altos valores de criminalidad (hotspots), particularmente en los vecindarios ubicados en el centro de la ciudad, donde el estadístico G toma valores positivos entre 1 y 2, e incluso mayores bajo ciertas configuraciones.
+
+Este patrón se observa con mayor claridad cuando se utiliza la matriz KNN con 4 vecinos ponderados, donde los vecindarios centrales presentan tonalidades rojas más intensas, indicando un estadístico local G más alto. Esto sugiere no solo una alta criminalidad en esos barrios, sino también que están rodeados por otros con niveles igualmente altos, lo que refuerza la presencia de un núcleo crítico. En contraste, los vecindarios situados al sur y al nororiente muestran valores negativos del estadístico G (entre -2 y -1), evidenciando conglomerados de baja criminalidad o "coldspots".
+
+En el caso de la matriz KNN con 1 vecino ponderado, los valores del estadístico tienden a dispersarse más, y aunque los patrones generales se mantienen, la señal de agrupamiento es menos definida debido al número reducido de vecinos considerados. Por su parte, la matriz relativa binaria también refleja el patrón central de concentración delictiva, aunque con una intensidad menor tanto en los hotspots como en los coldspots, mostrando valores G generalmente entre 1 y 2 en el centro, y entre -2 y -1 en las zonas periféricas.
+
+En conjunto, todos los métodos detectan una estructura espacial común, con mayor o menor intensidad: una zona central con alta criminalidad agrupada y áreas periféricas con niveles más bajos. Las diferencias entre los mapas permiten contrastar cómo la definición del vecindario afecta la detección y delimitación de estos patrones espaciales.
+
+```{r, fig.width=10, fig.height=10}
+#| echo: false
+#| message: false
+#| warning: false
+
+
+# Mapas de p-valores MC
+mapas_pvalor <- lapply(1:4, function(i) {
+  tm_shape(columbus) +
+    tm_fill(paste0("PVG", i),
+            palette = "Reds",
+            style = "cont",
+            title = "p-valor MC") +
+    tm_borders(col = "gray40") +
+    tm_layout(
+      legend.outside = TRUE,
+      legend.outside.position = "right",
+      legend.title.size = 0.8,
+      legend.text.size = 0.7,
+      legend.width = 0.15,
+      legend.height = 0.35
+    ) +
+    tm_credits(nombres_matrices[i],
+               position = c("left", "top"),
+               size = 0.9,
+               just = "left")
+})
+
+tmap_arrange(
+  mapas_pvalor[[1]], mapas_pvalor[[2]],
+  mapas_pvalor[[3]], mapas_pvalor[[4]],
+  nrow = 2, ncol = 2
+)
+
+```
+
+Los mapas de p-valores del estadístico Local G muestran que la mayoría de vecindarios no presentan evidencia de autocorrelación espacial local (p \> 0.2). Este patrón es aún más claro en zonas periféricas, donde los valores p tienden a ser mayores. No obstante, un grupo de vecindarios en el centro muestra p-valores consistentemente bajos, especialmente bajo la matriz KNN4, lo que indica una posible concentración espacial significativa. A medida que se amplía el número de vecinos (de KNN1 a KNN4), este patrón central se vuelve más evidente, reflejando una estructura espacial más marcada en esa zona.
+
+# MODELOS DE REGRESIÓN ESTIMADOS
+
+Se estimaron ocho modelos de regresión espacial con las covariables anteriormente mencionadas para cada una de las matrices de pesos espaciales consideradas: OLS, SLX, SAR, SEM, SDEM, SDM, Manski y SARAR. Cada uno representa diferentes formas de incorporar la dependencia espacial, como efectos en la variable dependiente (SAR), en los errores (SEM), o en las covariables (SLX, SDM). Para cada matriz, se seleccionó el modelo con menor AIC como el más adecuado. En la mayoría de los casos, el modelo SEM (Spatial Error Model) obtuvo el menor AIC, a excepción de la configuración con la matriz KNN4 donde el modelo con menor AIC resultó ser el SAR, siendo estos los 4 modelos seleccionados para su posterior análisis.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Fórmula del modelo
+reg.eq1 <- CRIME ~ HOVAL + INC + DISCBD + OPEN + PLUMB + CP
+
+# Nombres de modelos
+nombres_modelos <- c("OLS", "SLX", "SAR", "SEM", "SDEM", "SDM", "Manski", "SARAR")
+
+# Convertir nombres de matriz en válidos para nombres de objetos
+limpiar_nombre <- function(nombre) {
+  nombre <- gsub("[^[:alnum:]_]", "_", nombre)  
+  nombre <- gsub("_+", "_", nombre)             
+  nombre <- tolower(nombre)                     
+  return(paste0("tabla_", nombre))
+}
+
+# Loop por cada matriz de pesos
+for (nombre_matriz in names(lista_listw)) {
+  lw <- lista_listw[[nombre_matriz]]
+  
+  # Estimar modelos
+  reg1 <- lm(reg.eq1, data = columbus) #OLS            y=XB+e,
+  reg2 <- lmSLX(reg.eq1, data = columbus, listw = lw) #SLX            y=XB+WxT+e
+  reg3 <- lagsarlm(reg.eq1, data = columbus, listw = lw) #Lag Y          y=XB+WxT+u,   u=LWu+e
+  reg4 <- errorsarlm(reg.eq1, data = columbus, listw = lw) #Spatial Error  y=pWy+XB+e 
+  reg5 <- errorsarlm(reg.eq1, data = columbus, listw = lw, etype = "emixed") #SDEM Spatial Durbin Error Model y=XB+WxT+u,   u=LWu+e
+  reg6 <- lagsarlm(reg.eq1, data = columbus, listw = lw, type = "mixed") #SDM Spatial Durbin Model (add lag X to SAR) y=pWy+XB+WXT+e 
+  reg7 <- sacsarlm(reg.eq1, data = columbus, listw = lw, type = "sacmixed") #Manski Model: y=pWy+XB+WXT+u,   u=LWu+e (no recomendado)
+  reg8 <- sacsarlm(reg.eq1, data = columbus, listw = lw, type = "sac") #SARAR o Kelejian-Prucha, Cliff-Ord, o SAC If all T=0,y=pWy+XB+u, u=LWu+e
+  
+  # Calcular AIC y armar tabla
+  aics <- AIC(reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8)
+  tabla_aic <- tibble(
+    Modelo = nombres_modelos,
+    AIC = round(aics$AIC, 2)
+  ) |> arrange(AIC)
+  
+  nombre_objeto <- limpiar_nombre(nombre_matriz)
+  assign(nombre_objeto, tabla_aic)
+}
+
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+library(knitr)
+library(kableExtra)
+
+# Tabla: KNN 2 Ponderada
+kable(tabla_knn_2_ponderada, format = "html", align = "c", caption = "Matriz: KNN 2 Ponderada") %>%
+  kable_styling(full_width = FALSE, position = "left", bootstrap_options = c("striped", "hover"))
+
+# Tabla: Relativa Binaria
+kable(tabla_relativa_binaria, format = "html", align = "c", caption = "Matriz: Relativa Binaria") %>%
+  kable_styling(full_width = FALSE, position = "left", bootstrap_options = c("striped", "hover"))
+
+# Tabla: KNN 4 Ponderada
+kable(tabla_knn_4_ponderada, format = "html", align = "c", caption = "Matriz: KNN 4 Ponderada") %>%
+  kable_styling(full_width = FALSE, position = "left", bootstrap_options = c("striped", "hover"))
+
+# Tabla: KNN 1 Ponderada
+kable(tabla_knn_1_ponderada, format = "html", align = "c", caption = "Matriz: KNN 1 Ponderada") %>%
+  kable_styling(full_width = FALSE, position = "left", bootstrap_options = c("striped", "hover"))
+```
+
+## SELECCIÓN DE VARIABLES
+
+Tras seleccionar los modelos más adecuados según el AIC para cada configuración de matriz de pesos espaciales, se procedió a realizar un proceso de selección de variables mediante una estrategia tipo forward. Inicialmente, se incluyeron todas las covariables del modelo base, y luego se fueron eliminando aquellas con valores-p mayores a 0.05, hasta conservar solo aquellas con evidencia estadística suficiente.
+
+Este procedimiento se aplicó de forma independiente a cada combinación modelo-matriz, resultando en modelos más parsimoniosos y con variables significativas para cada caso.
+
+A continuación se resumen los modelos finales seleccionados, junto con su respectiva matriz espacial y las variables explicativas que permanecieron tras la depuración:
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+step_spatial_model <- function(formula_inicial, data, W, metodo = c("errorsarlm", "lagsarlm")) {
+  metodo <- match.arg(metodo)
+  formula_actual <- formula_inicial
+  repeat {
+    # Ajustar el modelo con la fórmula actual
+    modelo <- if (metodo == "errorsarlm") {
+      errorsarlm(formula_actual, data = data, listw = W)
+    } else {
+      lagsarlm(formula_actual, data = data, listw = W)
+    }
+    
+    # Extraer los coeficientes y sus p-valores
+    resumen <- summary(modelo)
+    coefs <- coef(resumen)
+    
+    # Filtrar términos distintos al intercepto
+    if ("(Intercept)" %in% rownames(coefs)) {
+      coefs <- coefs[rownames(coefs) != "(Intercept)", , drop = FALSE]
+    }
+
+    # Extraer p-valores
+    pvals <- coefs[, 4]
+    
+    # Revisar si todos los p-valores son menores a 0.05
+    if (all(pvals < 0.05)) {
+      break  # salir del bucle
+    }
+    
+    # Eliminar la variable con mayor p-valor
+    variable_a_eliminar <- names(which.max(pvals))
+    
+    # Actualizar la fórmula
+    vars_actuales <- attr(terms(formula_actual), "term.labels")
+    nueva_formula <- reformulate(vars_actuales[vars_actuales != variable_a_eliminar], response = all.vars(formula_actual)[1])
+    
+    # Actualizar fórmula actual
+    formula_actual <- nueva_formula
+  }
+  
+  return(modelo)
+}
+
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+# Fórmula base
+reg.eq1 <- CRIME ~ HOVAL + INC + DISCBD + OPEN + PLUMB + CP
+
+# Ejecutar backward elimination para cada modelo
+modelo1 <- step_spatial_model(reg.eq1, columbus, knn2_ponderada, metodo = "errorsarlm")
+modelo2 <- step_spatial_model(reg.eq1, columbus, relativa_binaria, metodo = "errorsarlm")
+modelo3 <- step_spatial_model(reg.eq1, columbus, knn4_ponderada, metodo = "lagsarlm")
+modelo4 <- step_spatial_model(reg.eq1, columbus, knn1_ponderada, metodo = "errorsarlm")
+# summary(modelo1)
+# summary(modelo2)
+# summary(modelo3)
+# summary(modelo4)
+
+# Crear la tabla con tibble
+tabla_modelos_finales <- tibble(
+  Modelo = c(
+    "SEM (Modelo 1)",
+    "SEM (Modelo 2)",
+    "SAR (Modelo 3)",
+    "SEM (Modelo 4)"
+  ),
+  Matriz = c(
+    "KNN4 ponderada",
+    "Relativa binaria",
+    "KNN2 ponderada",
+    "KNN1 ponderada"
+  ),
+  Variables_Seleccionadas = c(
+    "HOVAL, INC, CP",
+    "HOVAL, INC, PLUMB, CP",
+    "HOVAL, INC, CP",
+    "HOVAL, INC, PLUMB, CP"
+  )
+)
+
+# Mostrar 
+kable(tabla_modelos_finales, format = "simple", align = "lcc",
+      caption = "Resumen de modelos espaciales y sus variables seleccionadas")
+
+
+```
+
+
+
+Una vez definidos los cuatro modelos espaciales más apropiados según los criterios de AIC y selección de variables significativas, se procedió a evaluar la adecuación del ajuste en términos de sus residuos. Para ello, se aplicaron dos pruebas clave:
+
+-   Índice de Moran sobre los residuos: para verificar la presencia de autocorrelación espacial no explicada por los modelos.
+
+-   Prueba de Breusch-Pagan espacial: para evaluar la hipótesis nula de homocedasticidad (es decir, varianza constante de los errores).
+
+Los resultados del Índice de Moran muestran valores bajos y no significativos para todos los modelos (todos los p-valores \> 0.16), lo que indica que los residuos no presentan autocorrelación espacial significativa. Esto sugiere que los modelos fueron capaces de capturar adecuadamente la estructura espacial del fenómeno, es decir, extrajeron exitosamente el componente espacial del crimen.
+
+No obstante, la prueba de Breusch-Pagan muestra que, salvo en el Modelo 1 (SEM con KNN4 ponderada) que es marginalmente no significativo (p ≈ 0.067), los demás modelos presentan evidencia significativa de heterocedasticidad en los residuos. Esto implica que aún persiste cierta inestabilidad estructural en la relación entre las variables independientes y la tasa de crimen, probablemente debido a fenómenos de heterogeneidad espacial no capturada.
+
+En términos prácticos, estos resultados sugieren que aunque se logró remover la autocorrelación espacial en los errores, existen zonas dentro del área de estudio donde el comportamiento del crimen es más variable o más sensible a ciertas condiciones locales. Por tanto, se plantea como siguiente paso trabajar con filtros espaciales para absorber esta heterogeneidad residual.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+# Extrae los residuos del modelo SAC
+# resid1<- residuals(modelo1)
+# # Prueba de Moran's I
+# moran.test(resid1, listw = knn2_ponderada)
+# 
+# resid2<- residuals(modelo2)
+# # Prueba de Moran's I
+# moran.test(resid2, listw = relativa_binaria)
+# 
+# resid3<- residuals(modelo3)
+# # Prueba de Moran's I
+# moran.test(resid3, listw = knn4_ponderada)
+# 
+# resid4<- residuals(modelo4)
+# # Prueba de Moran's I
+# moran.test(resid4, listw = knn1_ponderada)
+
+# bptest.Sarlm(modelo1)
+# bptest.Sarlm(modelo2)
+# bptest.Sarlm(modelo3)
+# bptest.Sarlm(modelo4)
+
+
+# Crear la tabla
+tabla_diagnostico_residuos <- tribble(
+  ~Modelo, ~Matriz, ~Moran_I, ~Valorp, ~BP, ~valorp,
+  "SEM (Modelo 1)", "KNN4 ponderada",     0.0320, 0.3406,  7.15,  0.0672,
+  "SEM (Modelo 2)", "Relativa binaria",  0.0369, 0.3210, 15.39,  0.0039,
+  "SAR (Modelo 3)", "KNN2 ponderada",     0.0640, 0.1689,  9.53,  0.0231,
+  "SEM (Modelo 4)", "KNN1 ponderada",     0.0303, 0.3837, 14.81,  0.0051
+)
+
+# Mostrar tabla en consola
+kable(tabla_diagnostico_residuos, format = "simple", align = "lccccc", caption = "Diagnóstico de residuos espaciales")
+
+```
+
+### Aplicación de filtros espaciales
+
+Para corregir esta inestabilidad estructural en los residuos, se aplicaron filtros espaciales mediante la función ME() del paquete spatialreg.
+
+Estos filtros se basan en vectores propios asociados a una versión transformada de la matriz de pesos espaciales. Dichos vectores representan estructuras espaciales no capturadas por el modelo, es decir, patrones latentes de autocorrelación que podrían estar explicando parte del comportamiento espacial del fenómeno (en este caso, el crimen).
+
+La manera en la que se procedió fue la siguiente:
+
+-   Para cada uno de los modelos, se calculó un vector propio representativo, que maximiza la autocorrelación espacial de los residuos no explicados.
+
+-    Ese vector propio se agregó como una nueva covariable explicativa en el modelo.
+
+-    Posteriormente, se volvió a ajustar el modelo espacial correspondiente (SEM o SAR), esta vez incluyendo dicho filtro.
+
+Esto permitió generar una nueva versión de cada modelo, ahora considerando esa estructura espacial adicional.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+# FILTROS ESPACIALES
+# vectores propios (eigenvectores) asociados a la matriz de pesos espaciales transformada, que capturan estructuras de autocorrelación espacial en los residuos
+filtro.m1 <- ME(CRIME ~ HOVAL + INC  + CP, data = columbus, listw = knn2_ponderada)
+columbus$vecm1.1 <- filtro.m1$vectors[, 1]
+
+reg.eq2= CRIME ~ HOVAL + INC +CP + vecm1.1
+modelo1=errorsarlm(reg.eq2,data=columbus, knn2_ponderada)                  #Spatial Error  y=pWy+XB+e   
+
+# Extrae los residuos del modelo SAC
+resid1 <- residuals(modelo1)
+# moran.test(resid1, listw = knn2_ponderada)
+# bptest.Sarlm(modelo1)
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+# FILTROS ESPACIALES
+# vectores propios (eigenvectores) asociados a la matriz de pesos espaciales transformada, que capturan estructuras de autocorrelación espacial en los residuos
+filtro.m2 <- ME(CRIME ~ HOVAL + INC  + PLUMB + CP, data = columbus, listw = relativa_binaria)
+columbus$vecm2.1 <- filtro.m2$vectors[, 1]
+
+reg.eq2= CRIME ~ HOVAL + INC + PLUMB + CP + vecm2.1
+modelo2=errorsarlm(reg.eq2,data=columbus, relativa_binaria)                  #Spatial Error  y=pWy+XB+e   
+
+# Extrae los residuos del modelo SAC
+resid2 <- residuals(modelo2)
+# moran.test(resid2, listw = relativa_binaria)
+# bptest.Sarlm(modelo2)
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+# FILTROS ESPACIALES
+# vectores propios (eigenvectores) asociados a la matriz de pesos espaciales transformada, que capturan estructuras de autocorrelación espacial en los residuos
+filtro.m3 <- ME(CRIME ~ HOVAL + INC + CP, data = columbus, listw = knn4_ponderada)
+columbus$vecm3.1 <- filtro.m3$vectors[, 1]
+
+reg.eq2= CRIME ~ HOVAL + INC + CP + vecm3.1
+modelo3=lagsarlm(reg.eq2,data=columbus, knn4_ponderada)                  #Spatial Error  y=pWy+XB+e   
+
+# Extrae los residuos del modelo SAC
+resid3 <- residuals(modelo3)
+# moran.test(resid3, listw = knn4_ponderada)
+# bptest.Sarlm(modelo3)
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+filtro.m4 <- ME(CRIME ~ HOVAL + INC  + PLUMB + CP, data = columbus, listw = knn1_ponderada)
+columbus$vecm4.1 <- filtro.m4$vectors[, 1]
+
+reg.eq2= CRIME ~ HOVAL + INC + PLUMB + CP + vecm4.1
+modelo2=errorsarlm(reg.eq2,data=columbus, knn1_ponderada)                  #Spatial Error  y=pWy+XB+e   
+
+# Extrae los residuos del modelo SAC
+resid4 <- residuals(modelo4)
+# moran.test(resid4, listw = knn1_ponderada)
+# bptest.Sarlm(modelo4)
+
+```
+Después de incorporar los filtros, se repitieron las pruebas de Moran y Breusch-Pagan sobre los nuevos residuos. Los resultados se resumen a continuación:
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+# Crear la tabla con tribble
+tabla_filtros <- tribble(
+  ~Modelo, ~Matriz, ~Moran_I, ~Valorp, ~BP, ~valorp,
+  "Modelo 1 + filtro", "KNN2 ponderada",     0.0303, 0.3456,  7.29,  0.1213,
+  "Modelo 2 + filtro", "Relativa binaria",  0.0162, 0.3835, 13.64,  0.0181,
+  "Modelo 3 + filtro", "KNN4 ponderada",     0.0101, 0.3632, 12.39,  0.0147,
+  "Modelo 4 + filtro", "KNN1 ponderada",     0.0303, 0.3837, 14.81,  0.0051
+)
+
+kable(tabla_filtros, format = "simple", align = "lccccc", caption = "Resumen de modelos espaciales con filtros")
+
+```
+Los valores del índice de Moran se redujeron aún más y siguen siendo no significativos, confirmando que la autocorrelación espacial fue bien controlada.
+
+Los valores de Breusch-Pagan muestran una mejora sustancial en el Modelo 1, cuyo p-valor ahora es no significativo (p ≈ 0.12), lo que sugiere que el filtro ayudó a estabilizar la varianza de los residuos.
+
+Sin embargo, en los modelos 2, 3 y 4 la heterocedasticidad persiste, aunque con una ligera mejora en los p-valores. Esto indica que la heterogeneidad espacial del crimen no se elimina completamente con un solo eigenvector, pero se logra reducir parcialmente.
+
+# ANÁLISIS DE CLUSTER
+
+Finalmente, se aplicó un análisis de agrupamiento por cuantiles (clustering) sobre los valores ajustados de cada modelo, con el objetivo de visualizar y comparar la distribución espacial de la tasa de criminalidad estimada en los diferentes escenarios.
+
+Para ello:
+
+Se dividieron los valores ajustados de cada modelo en 5 niveles (quintiles).
+
+Se representaron mediante mapas coropléticos donde cada color indica un nivel distinto de criminalidad estimada, del rojo más oscuro (mayor tasa) al más claro (menor).
+
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Obtener los valores ajustados para cada modelo
+columbus$ajustados1 <- modelo1$fitted.values
+columbus$ajustados2 <- modelo2$fitted.values
+columbus$ajustados3 <- modelo3$fitted.values
+columbus$ajustados4 <- modelo4$fitted.values
+
+# Calcular los breaks por cuantiles para cada modelo
+breaks1 <- classIntervals(columbus$ajustados1, n = 5, style = "quantile")$brks
+breaks2 <- classIntervals(columbus$ajustados2, n = 5, style = "quantile")$brks
+breaks3 <- classIntervals(columbus$ajustados3, n = 5, style = "quantile")$brks
+breaks4 <- classIntervals(columbus$ajustados4, n = 5, style = "quantile")$brks
+
+# Paleta común
+pal <- brewer.pal(5, "Reds")
+
+# Crear los mapas
+mapa1 <- tm_shape(columbus) +
+  tm_fill("ajustados1", palette = pal, breaks = breaks1,
+          title = "Ajustados Modelo 1") +
+  tm_borders() +
+  tm_layout(title = "Modelo 1", legend.outside = TRUE)
+
+mapa2 <- tm_shape(columbus) +
+  tm_fill("ajustados2", palette = pal, breaks = breaks2,
+          title = "Ajustados Modelo 2") +
+  tm_borders() +
+  tm_layout(title = "Modelo 2", legend.outside = TRUE)
+
+mapa3 <- tm_shape(columbus) +
+  tm_fill("ajustados3", palette = pal, breaks = breaks3,
+          title = "Ajustados Modelo 3") +
+  tm_borders() +
+  tm_layout(title = "Modelo 3", legend.outside = TRUE)
+
+mapa4 <- tm_shape(columbus) +
+  tm_fill("ajustados4", palette = pal, breaks = breaks4,
+          title = "Ajustados Modelo 4") +
+  tm_borders() +
+  tm_layout(title = "Modelo 4", legend.outside = TRUE)
+
+# Mostrar los 4 mapas en una cuadrícula
+tmap_arrange(mapa1, mapa2, mapa3, mapa4, ncol = 2)
+
+
+```
+En todos los modelos, los niveles más altos de criminalidad estimada se concentran en el centro del mapa, es decir, en la zona central de Columbus.
+
+Particularmente, el modelo 1, que mostró el mejor desempeño estadístico tras aplicar filtros (sin autocorrelación ni heterocedasticidad), logra delimitar de forma más precisa el núcleo de mayor criminalidad.
+
+En los modelos 2 y 4, aparece un vecindario adicional con alta criminalidad, extendiendo levemente la zona central con tasa elevada.
+
+Los niveles intermedios (clusters 2 y 3) tienden a estar conformados por vecindarios adyacentes al centro, mientras que los niveles más bajos (clusters 4 y 5) se ubican en la periferia: norte, sur, occidente y nororiente de la ciudad.
+
+Este patrón sugiere una disminución gradual de la criminalidad estimada conforme se aleja del centro urbano, reflejando una clara estructura espacial del fenómeno.
+
+El modelo final propuesto es el modelo 1, que corresponde a un modelo de error espacial (SEM) ajustado utilizando la matriz de pesos KNN2 ponderada. Este modelo fue seleccionado porque dicha matriz presentó el mayor índice de Moran en el análisis exploratorio y porque fue el único que no presentó evidencia de heterocedasticidad según la prueba de Breusch-Pagan (valor-p alto), lo que sugiere que los residuos tienen varianza constante.
+
+A continuación, se presenta el resumen final del modelo:
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Crear la tabla con tibble
+tabla_resultados <- tibble(
+  Variable = c(
+    "Constante", "HOVAL", "INC", "CP", "Lambda",
+    "Test de Wald", "Log-verosimilitud", "AIC", "Breusch-Pagan"
+  ),
+  Coeficientes = c(
+    46.81, -0.213, -0.733, 14.37, 0.271,
+    3.7546, -175.20, 364.41, 7.29
+  )
+)
+
+# Mostrar 
+kable(tabla_resultados, format = "simple", align = "lc", caption = "Resumen del modelo SAR (Error spatial)")
+```
+Los resultados indican que barrios con mayor valor promedio de vivienda (HOVAL) y mayores ingresos (INC) tienden a presentar menos criminalidad, como lo reflejan sus coeficientes negativos. En contraste, vivir en el núcleo urbano (CP) se asocia con un aumento significativo del crimen. El parámetro espacial (Lambda = 0.271) sugiere una dependencia espacial moderada en los delitos: los valores del crimen en un barrio tienden a estar relacionados con los de sus vecinos. El modelo presenta un ajuste aceptable (AIC = 364.41) y evidencia heterocedasticidad según el test de Breusch-Pagan (7.29).
+
+## GRAFICOS DE CALIDAD DEL MODELO
+
+Se evaluó la calidad del modelo SEM mediante tres gráficos: (1) el QQ plot mostró que los residuos siguen aproximadamente una distribución normal, alineándose con la línea de referencia; (2) el gráfico de predichos vs. observados indicó buen ajuste, con puntos cercanos a la línea identidad; y (3) el gráfico de residuos vs. valores ajustados evidenció dispersión aleatoria alrededor de cero, sin patrones sistemáticos. Estos resultados sugieren un buen comportamiento del modelo.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+residuos <- residuals(modelo1)
+
+
+# QQ plot
+qqnorm(residuos, main = "QQ plot de los residuos (modelo SEM)")
+qqline(residuos, col = "red", lwd = 2)
+
+
+plot(fitted(modelo1), columbus$CRIME, main = "Predichos vs Observados", xlab = "Predichos", ylab = "Observados")
+abline(0,1,col="red")
+
+
+plot(fitted(modelo1), residuos,
+     xlab = "Valores ajustados",
+     ylab = "Residuos",
+     main = "Residuos vs Ajustados (SEM)",
+     pch = 20, col = "steelblue")
+abline(h = 0, col = "red", lwd = 2)
+```
+# CONCLUSIÓN
+El análisis espacial de la tasa de criminalidad en Columbus en 1980 permitió identificar patrones claros y variables clave asociadas al crimen, como el valor promedio de la vivienda, los ingresos y la localización urbana. El modelo SEM con matriz KNN2 ponderada ofreció el mejor desempeño, capturando de forma más precisa la realidad observada. Estos resultados muestran que la criminalidad no se distribuye al azar, sino que responde a condiciones estructurales del entorno urbano. Entender estos factores permite no solo mejorar el análisis estadístico, sino también orientar políticas públicas más justas y efectivas, focalizando esfuerzos en zonas con mayores carencias y diseñando intervenciones más alineadas con las dinámicas territoriales reales.
